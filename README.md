@@ -48,13 +48,14 @@ Remover área
 
 ## Link dos checkouts
 
-- ?date=2026-10-19&checkout=lecture-online (palestra online)
-- ?date=2026-10-19&checkout=lecture-presential (palestra presencial)
-- ?date=2026-10-19&checkout=activity (atividade)
+- ?checkout=lecture-online (palestra online)
+- ?checkout=lecture-presential (palestra presencial)
+- ?checkout=activity (atividade)
 
-## Para buscar os que possuem os dois checkouts no dia
+## Para atualizar os qrcodes (por atividade e por dia)
 
-select *
-from public.participantes_sorteio
-where data_sorteio = '2026-10-19' #Alterar a data conforme seja necessário
-order by numero_sorteio;
+update public.controle_checkouts
+set
+  ativo = true,
+  data_evento = '2026-10-19'
+where tipo = 'lecture-presential';

@@ -9,47 +9,85 @@ type CheckoutType =
 
 type CheckoutBody = {
   passportId?: unknown;
+  date?: unknown;
   checkout?: unknown;
 };
 
 const columnsByDate = {
   "2026-10-19": {
-    online: "checkout_palestra_online_dia19",
-    presential: "checkout_palestra_presencial_dia19",
-    activity: "checkout_atividade_dia19",
-    raffle: "numero_sorteio_dia19",
+    online:
+      "checkout_palestra_online_dia19",
+
+    presential:
+      "checkout_palestra_presencial_dia19",
+
+    activity:
+      "checkout_atividade_dia19",
+
+    raffle:
+      "numero_sorteio_dia19",
   },
 
   "2026-10-20": {
-    online: "checkout_palestra_online_dia20",
-    presential: "checkout_palestra_presencial_dia20",
-    activity: "checkout_atividade_dia20",
-    raffle: "numero_sorteio_dia20",
+    online:
+      "checkout_palestra_online_dia20",
+
+    presential:
+      "checkout_palestra_presencial_dia20",
+
+    activity:
+      "checkout_atividade_dia20",
+
+    raffle:
+      "numero_sorteio_dia20",
   },
 
   "2026-10-21": {
-    online: "checkout_palestra_online_dia21",
-    presential: "checkout_palestra_presencial_dia21",
-    activity: "checkout_atividade_dia21",
-    raffle: "numero_sorteio_dia21",
+    online:
+      "checkout_palestra_online_dia21",
+
+    presential:
+      "checkout_palestra_presencial_dia21",
+
+    activity:
+      "checkout_atividade_dia21",
+
+    raffle:
+      "numero_sorteio_dia21",
   },
 
   "2026-10-22": {
-    online: "checkout_palestra_online_dia22",
-    presential: "checkout_palestra_presencial_dia22",
-    activity: "checkout_atividade_dia22",
-    raffle: "numero_sorteio_dia22",
+    online:
+      "checkout_palestra_online_dia22",
+
+    presential:
+      "checkout_palestra_presencial_dia22",
+
+    activity:
+      "checkout_atividade_dia22",
+
+    raffle:
+      "numero_sorteio_dia22",
   },
 
   "2026-10-23": {
-    online: "checkout_palestra_online_dia23",
-    presential: "checkout_palestra_presencial_dia23",
-    activity: "checkout_atividade_dia23",
-    raffle: "numero_sorteio_dia23",
+    online:
+      "checkout_palestra_online_dia23",
+
+    presential:
+      "checkout_palestra_presencial_dia23",
+
+    activity:
+      "checkout_atividade_dia23",
+
+    raffle:
+      "numero_sorteio_dia23",
   },
 } as const;
 
-function isUuid(value: string) {
+function isUuid(
+  value: string,
+) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
   );
@@ -59,14 +97,31 @@ function isCheckoutType(
   value: string,
 ): value is CheckoutType {
   return (
-    value === "lecture-online" ||
-    value === "lecture-presential" ||
-    value === "activity"
+    value ===
+      "lecture-online" ||
+    value ===
+      "lecture-presential" ||
+    value ===
+      "activity"
+  );
+}
+
+function isEventDate(
+  value: string,
+): value is keyof typeof columnsByDate {
+  return (
+    value in
+    columnsByDate
   );
 }
 
 function generateRaffleNumber() {
-  return Math.floor(Math.random() * 999) + 1;
+  return (
+    Math.floor(
+      Math.random() *
+        999,
+    ) + 1
+  );
 }
 
 export async function POST(
@@ -82,6 +137,12 @@ export async function POST(
         ? body.passportId.trim()
         : "";
 
+    const date =
+      typeof body.date ===
+      "string"
+        ? body.date.trim()
+        : "";
+
     const checkout =
       typeof body.checkout ===
       "string"
@@ -89,12 +150,14 @@ export async function POST(
         : "";
 
     /* =======================================================
-       1. VALIDA DADOS RECEBIDOS
+       1. VALIDA O PASSAPORTE
     ======================================================= */
 
     if (
       !passportId ||
-      !isUuid(passportId)
+      !isUuid(
+        passportId,
+      )
     ) {
       return NextResponse.json(
         {
@@ -107,9 +170,36 @@ export async function POST(
       );
     }
 
+    /* =======================================================
+       2. VALIDA DATA
+    ======================================================= */
+
+    if (
+      !date ||
+      !isEventDate(
+        date,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Data do evento inválida.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    /* =======================================================
+       3. VALIDA CHECKOUT
+    ======================================================= */
+
     if (
       !checkout ||
-      !isCheckoutType(checkout)
+      !isCheckoutType(
+        checkout,
+      )
     ) {
       return NextResponse.json(
         {
@@ -126,21 +216,33 @@ export async function POST(
       createSupabaseAdminClient();
 
     /* =======================================================
-       2. CONSULTA O CONTROLE DO QR
+       4. CONSULTA SE O QR ESTÁ ATIVO
     ======================================================= */
 
     const {
       data: control,
-      error: controlError,
+      error:
+        controlError,
     } = await supabase
-      .from("controle_checkouts")
-      .select(
-        "tipo, ativo, data_evento",
+      .from(
+        "controle_checkouts",
       )
-      .eq("tipo", checkout)
+      .select(
+        "data_evento, tipo, ativo",
+      )
+      .eq(
+        "data_evento",
+        date,
+      )
+      .eq(
+        "tipo",
+        checkout,
+      )
       .maybeSingle();
 
-    if (controlError) {
+    if (
+      controlError
+    ) {
       throw controlError;
     }
 
@@ -149,7 +251,8 @@ export async function POST(
         {
           error:
             "Este QR Code não está configurado.",
-          code: "QR_NOT_CONFIGURED",
+          code:
+            "QR_NOT_CONFIGURED",
         },
         {
           status: 404,
@@ -158,15 +261,19 @@ export async function POST(
     }
 
     /* =======================================================
-       3. VERIFICA SE O QR ESTÁ ATIVO
+       5. BLOQUEIA QR DESATIVADO
     ======================================================= */
 
-    if (control.ativo !== true) {
+    if (
+      control.ativo !==
+      true
+    ) {
       return NextResponse.json(
         {
           error:
             "Este check-out não está disponível no momento.",
-          code: "QR_DISABLED",
+          code:
+            "QR_DISABLED",
         },
         {
           status: 403,
@@ -175,57 +282,27 @@ export async function POST(
     }
 
     /* =======================================================
-       4. VERIFICA A DATA CONFIGURADA
-    ======================================================= */
-
-    if (!control.data_evento) {
-      return NextResponse.json(
-        {
-          error:
-            "Este check-out ainda não possui uma data configurada.",
-          code: "DATE_NOT_CONFIGURED",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    const eventDate =
-      String(
-        control.data_evento,
-      ) as keyof typeof columnsByDate;
-
-    const columns =
-      columnsByDate[eventDate];
-
-    if (!columns) {
-      return NextResponse.json(
-        {
-          error:
-            "A data configurada não pertence à SIPAT 2026.",
-          code: "INVALID_EVENT_DATE",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    /* =======================================================
-       5. BUSCA O PARTICIPANTE
+       6. BUSCA O PASSAPORTE
     ======================================================= */
 
     const {
       data: passport,
-      error: passportError,
+      error:
+        passportError,
     } = await supabase
-      .from("passaportes")
+      .from(
+        "passaportes",
+      )
       .select("*")
-      .eq("id", passportId)
+      .eq(
+        "id",
+        passportId,
+      )
       .maybeSingle();
 
-    if (passportError) {
+    if (
+      passportError
+    ) {
       throw passportError;
     }
 
@@ -241,19 +318,25 @@ export async function POST(
       );
     }
 
+    const columns =
+      columnsByDate[
+        date
+      ];
+
     /* =======================================================
-       6. DESCOBRE QUAL COLUNA DEVE SER ALTERADA
+       7. DESCOBRE QUAL COLUNA ATUALIZAR
     ======================================================= */
 
-    let checkoutColumn: string;
+    let checkoutColumn:
+      string;
 
     if (
       checkout ===
       "lecture-online"
     ) {
       /*
-       * Se já participou presencialmente,
-       * não deixamos trocar a modalidade.
+       * Não permite registrar
+       * online se já fez presencial.
        */
       if (
         passport[
@@ -280,8 +363,8 @@ export async function POST(
       "lecture-presential"
     ) {
       /*
-       * Se já participou online,
-       * não deixamos trocar a modalidade.
+       * Não permite registrar
+       * presencial se já fez online.
        */
       if (
         passport[
@@ -309,15 +392,16 @@ export async function POST(
     }
 
     /* =======================================================
-       7. REGISTRA O CHECK-OUT
+       8. REGISTRA O CHECKOUT
     ======================================================= */
 
     let updatedPassport =
       passport;
 
     /*
-     * Se já estava true, não precisamos
-     * fazer update novamente.
+     * Se já estiver true,
+     * considera o checkout
+     * como já realizado.
      */
     if (
       passport[
@@ -328,12 +412,17 @@ export async function POST(
         data,
         error,
       } = await supabase
-        .from("passaportes")
+        .from(
+          "passaportes",
+        )
         .update({
           [checkoutColumn]:
             true,
         })
-        .eq("id", passportId)
+        .eq(
+          "id",
+          passportId,
+        )
         .select("*")
         .single();
 
@@ -341,11 +430,12 @@ export async function POST(
         throw error;
       }
 
-      updatedPassport = data;
+      updatedPassport =
+        data;
     }
 
     /* =======================================================
-       8. VERIFICA SE A PESSOA ESTÁ APTA AO SORTEIO
+       9. VERIFICA ELEGIBILIDADE
     ======================================================= */
 
     const lectureCompleted =
@@ -374,7 +464,7 @@ export async function POST(
       updatedPassport;
 
     /* =======================================================
-       9. GERA O NÚMERO DO SORTEIO
+       10. GERA O NÚMERO DO SORTEIO
     ======================================================= */
 
     if (
@@ -399,10 +489,13 @@ export async function POST(
         const {
           data:
             passportWithRaffle,
+
           error:
             raffleError,
         } = await supabase
-          .from("passaportes")
+          .from(
+            "passaportes",
+          )
           .update({
             [columns.raffle]:
               raffleNumber,
@@ -419,7 +512,7 @@ export async function POST(
           .maybeSingle();
 
         /*
-         * Salvou o número.
+         * Sucesso.
          */
         if (
           !raffleError &&
@@ -436,8 +529,7 @@ export async function POST(
 
         /*
          * 23505 =
-         * número já existe
-         * naquele dia.
+         * número duplicado.
          *
          * Gera outro.
          */
@@ -449,12 +541,10 @@ export async function POST(
         }
 
         /*
-         * Pode acontecer de duas
-         * requisições chegarem quase
-         * juntas.
-         *
-         * Nesse caso verificamos
-         * novamente o passaporte.
+         * Outra requisição
+         * pode ter gerado
+         * o número ao mesmo
+         * tempo.
          */
         if (
           !raffleError &&
@@ -463,10 +553,13 @@ export async function POST(
           const {
             data:
               refreshedPassport,
+
             error:
               refreshError,
           } = await supabase
-            .from("passaportes")
+            .from(
+              "passaportes",
+            )
             .select("*")
             .eq(
               "id",
@@ -474,7 +567,9 @@ export async function POST(
             )
             .single();
 
-          if (refreshError) {
+          if (
+            refreshError
+          ) {
             throw refreshError;
           }
 
@@ -493,12 +588,16 @@ export async function POST(
           }
         }
 
-        if (raffleError) {
+        if (
+          raffleError
+        ) {
           throw raffleError;
         }
       }
 
-      if (!raffleCreated) {
+      if (
+        !raffleCreated
+      ) {
         return NextResponse.json(
           {
             error:
@@ -512,15 +611,16 @@ export async function POST(
     }
 
     /* =======================================================
-       10. RETORNA PARA O PAGE.TSX
+       11. RESPOSTA
     ======================================================= */
 
     return NextResponse.json({
       success: true,
 
       checkout: {
-        date: eventDate,
-        type: checkout,
+        date,
+        type:
+          checkout,
       },
 
       eligible,

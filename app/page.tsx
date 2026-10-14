@@ -275,89 +275,7 @@ const databaseColumnsByDate = {
 } as const;
 
 /* =========================================================
-   FORMATA O NÚMERO DO SORTEIO
-========================================================= */
-
-function formatRaffleNumber(
-  value: unknown,
-) {
-  if (
-    typeof value !== "number" &&
-    typeof value !== "string"
-  ) {
-    return null;
-  }
-
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) {
-    return null;
-  }
-
-  return String(number).padStart(
-    3,
-    "0",
-  );
-}
-
-/* =========================================================
-   CONVERTE O REGISTRO DO SUPABASE PARA O FORMATO DA TELA
-========================================================= */
-
-function checkoutsFromDatabase(
-  row: PassportRow,
-) {
-  return initialCheckouts.map(
-    (day) => {
-      const columns =
-        databaseColumnsByDate[
-          day.date as keyof typeof databaseColumnsByDate
-        ];
-
-      if (!columns) {
-        return day;
-      }
-
-      const online =
-        row[columns.online] === true;
-
-      const presential =
-        row[columns.presential] ===
-        true;
-
-      let lectureMode: LectureMode =
-        null;
-
-      if (online) {
-        lectureMode = "online";
-      } else if (presential) {
-        lectureMode =
-          "presential";
-      }
-
-      return {
-        ...day,
-
-        lecture:
-          online || presential,
-
-        lectureMode,
-
-        activity:
-          row[columns.activity] ===
-          true,
-
-        raffleNumber:
-          formatRaffleNumber(
-            row[columns.raffle],
-          ),
-      };
-    },
-  );
-}
-
-/* =========================================================
-   VALIDA O TIPO DO QR CODE
+   FUNÇÕES AUXILIARES
 ========================================================= */
 
 function isCheckoutType(
@@ -371,12 +289,111 @@ function isCheckoutType(
   );
 }
 
+function isEventDate(
+  value: string | null,
+): value is keyof typeof databaseColumnsByDate {
+  if (!value) {
+    return false;
+  }
+
+  return (
+    value in databaseColumnsByDate
+  );
+}
+
+function formatRaffleNumber(
+  value: unknown,
+) {
+  if (
+    typeof value !== "number" &&
+    typeof value !== "string"
+  ) {
+    return null;
+  }
+
+  const number =
+    Number(value);
+
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  return String(
+    number,
+  ).padStart(3, "0");
+}
+
 /* =========================================================
-   COMPONENTE PRINCIPAL
+   CONVERTE O BANCO PARA A TELA
+========================================================= */
+
+function checkoutsFromDatabase(
+  row: PassportRow,
+) {
+  return initialCheckouts.map(
+    (day) => {
+      const columns =
+        databaseColumnsByDate[
+          day.date as keyof typeof databaseColumnsByDate
+        ];
+
+      const online =
+        row[
+          columns.online
+        ] === true;
+
+      const presential =
+        row[
+          columns.presential
+        ] === true;
+
+      let lectureMode:
+        LectureMode = null;
+
+      if (online) {
+        lectureMode =
+          "online";
+      } else if (
+        presential
+      ) {
+        lectureMode =
+          "presential";
+      }
+
+      return {
+        ...day,
+
+        lecture:
+          online ||
+          presential,
+
+        lectureMode,
+
+        activity:
+          row[
+            columns.activity
+          ] === true,
+
+        raffleNumber:
+          formatRaffleNumber(
+            row[
+              columns.raffle
+            ],
+          ),
+      };
+    },
+  );
+}
+
+/* =========================================================
+   COMPONENTE
 ========================================================= */
 
 export default function Home() {
-  const [profile, setProfile] =
+  const [
+    profile,
+    setProfile,
+  ] =
     useState<Profile>(
       emptyProfile,
     );
@@ -384,49 +401,71 @@ export default function Home() {
   const [
     passportCreated,
     setPassportCreated,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     checkouts,
     setCheckouts,
-  ] = useState<DayCheckout[]>(
-    initialCheckouts,
-  );
+  ] =
+    useState<
+      DayCheckout[]
+    >(
+      initialCheckouts,
+    );
 
   const [
     checkoutType,
     setCheckoutType,
   ] =
-    useState<CheckoutType | null>(
-      null,
-    );
+    useState<
+      CheckoutType | null
+    >(null);
+
+  const [
+    checkoutDate,
+    setCheckoutDate,
+  ] =
+    useState<
+      string | null
+    >(null);
 
   const [
     selectedDate,
     setSelectedDate,
-  ] = useState(
-    initialCheckouts[0].date,
-  );
+  ] =
+    useState(
+      initialCheckouts[0]
+        .date,
+    );
 
-  const [ready, setReady] =
+  const [
+    ready,
+    setReady,
+  ] =
     useState(false);
 
   const [
     passportId,
     setPassportId,
   ] =
-    useState<string | null>(null);
+    useState<
+      string | null
+    >(null);
 
   const [
     savingPassport,
     setSavingPassport,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     formError,
     setFormError,
   ] =
-    useState<string | null>(null);
+    useState<
+      string | null
+    >(null);
 
   const [
     checkoutStatus,
@@ -440,35 +479,30 @@ export default function Home() {
     checkoutMessage,
     setCheckoutMessage,
   ] =
-    useState<string | null>(null);
+    useState<
+      string | null
+    >(null);
 
   /*
-   * Impede que o React envie várias
-   * requisições do mesmo QR na mesma
-   * abertura da página.
+   * Evita duplicação de
+   * requisição durante renders.
    */
   const checkoutAttemptRef =
-    useRef<string | null>(null);
+    useRef<
+      string | null
+    >(null);
 
   /* =========================================================
-     1. LÊ O QR CODE PELA URL
+     1. LÊ O QR CODE
   =========================================================
 
-     Agora existem apenas 3 links:
+     Exemplos:
 
-     PALESTRA ONLINE:
-     /?checkout=lecture-online
+     /?date=2026-10-19&checkout=lecture-online
 
-     PALESTRA PRESENCIAL:
-     /?checkout=lecture-presential
+     /?date=2026-10-19&checkout=lecture-presential
 
-     ATIVIDADE:
-     /?checkout=activity
-
-     A data não vem mais no link.
-
-     Quem informa o dia atual é
-     public.controle_checkouts.
+     /?date=2026-10-19&checkout=activity
   ========================================================= */
 
   useEffect(() => {
@@ -478,13 +512,36 @@ export default function Home() {
       );
 
     const checkout =
-      params.get("checkout");
+      params.get(
+        "checkout",
+      );
+
+    const date =
+      params.get(
+        "date",
+      );
 
     if (
-      isCheckoutType(checkout)
+      isCheckoutType(
+        checkout,
+      )
     ) {
       setCheckoutType(
         checkout,
+      );
+    }
+
+    if (
+      isEventDate(
+        date,
+      )
+    ) {
+      setCheckoutDate(
+        date,
+      );
+
+      setSelectedDate(
+        date,
       );
     }
   }, []);
@@ -494,180 +551,175 @@ export default function Home() {
   ========================================================= */
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled =
+      false;
 
-  async function restorePassport() {
-    const storedId =
-      window.localStorage.getItem(
-        "passaporte-gsk-sipat-id",
-      );
-
-    /*
-     * Se não existe UUID salvo,
-     * não existe sessão/localização
-     * de passaporte para recuperar.
-     */
-    if (!storedId) {
-      if (!cancelled) {
-        setReady(true);
-      }
-
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `/api/passaportes/${storedId}`,
-        {
-          cache: "no-store",
-        },
-      );
-
-      /*
-       * =====================================================
-       * PASSAPORTE NÃO EXISTE MAIS NO SUPABASE
-       * =====================================================
-       *
-       * Remove todos os dados locais e
-       * volta para a tela de cadastro.
-       */
-      if (response.status === 404) {
-        window.localStorage.removeItem(
+    async function restorePassport() {
+      const storedId =
+        window.localStorage.getItem(
           "passaporte-gsk-sipat-id",
         );
 
-        window.localStorage.removeItem(
-          "passaporte-gsk-sipat-2026",
-        );
-
+      /*
+       * Sem UUID salvo:
+       * mostra o cadastro.
+       */
+      if (!storedId) {
         if (!cancelled) {
-          setPassportId(null);
-
-          setProfile(
-            emptyProfile,
-          );
-
-          setCheckouts(
-            initialCheckouts,
-          );
-
-          setPassportCreated(
-            false,
-          );
-
-          setCheckoutStatus(
-            "idle",
-          );
-
-          setCheckoutMessage(
-            null,
+          setReady(
+            true,
           );
         }
 
         return;
       }
 
-      /*
-       * Outros erros da API.
-       */
-      if (!response.ok) {
+      try {
+        const response =
+          await fetch(
+            `/api/passaportes/${storedId}`,
+            {
+              cache:
+                "no-store",
+            },
+          );
+
+        /*
+         * O usuário foi apagado
+         * do Supabase.
+         */
+        if (
+          response.status ===
+          404
+        ) {
+          window.localStorage.removeItem(
+            "passaporte-gsk-sipat-id",
+          );
+
+          window.localStorage.removeItem(
+            "passaporte-gsk-sipat-2026",
+          );
+
+          if (
+            !cancelled
+          ) {
+            setPassportId(
+              null,
+            );
+
+            setProfile(
+              emptyProfile,
+            );
+
+            setCheckouts(
+              initialCheckouts,
+            );
+
+            setPassportCreated(
+              false,
+            );
+
+            setCheckoutStatus(
+              "idle",
+            );
+
+            setCheckoutMessage(
+              null,
+            );
+          }
+
+          return;
+        }
+
+        if (
+          !response.ok
+        ) {
+          const result =
+            (await response.json()) as {
+              error?: string;
+            };
+
+          throw new Error(
+            result.error ??
+              "Não foi possível recuperar o passaporte.",
+          );
+        }
+
         const result =
           (await response.json()) as {
-            error?: string;
+            passport:
+              PassportRow;
           };
 
-        throw new Error(
-          result.error ??
-            "Não foi possível recuperar o passaporte.",
+        const row =
+          result.passport;
+
+        if (cancelled) {
+          return;
+        }
+
+        setPassportId(
+          row.id,
         );
-      }
 
-      /*
-       * =====================================================
-       * PASSAPORTE EXISTE
-       * =====================================================
-       */
+        setProfile({
+          name:
+            row.nome,
+          email:
+            row.email,
+        });
 
-      const result =
-        (await response.json()) as {
-          passport: PassportRow;
-        };
+        setCheckouts(
+          checkoutsFromDatabase(
+            row,
+          ),
+        );
 
-      const row =
-        result.passport;
-
-      if (cancelled) {
-        return;
-      }
-
-      setPassportId(
-        row.id,
-      );
-
-      setProfile({
-        name: row.nome,
-        email: row.email,
-      });
-
-      setCheckouts(
-        checkoutsFromDatabase(
-          row,
-        ),
-      );
-
-      setPassportCreated(
-        true,
-      );
-    } catch (error) {
-      console.error(
-        "Erro ao recuperar passaporte:",
-        error,
-      );
-
-      /*
-       * IMPORTANTE:
-       *
-       * Em caso de erro de conexão,
-       * NÃO usamos mais o localStorage
-       * para fingir que o cadastro existe.
-       *
-       * O Supabase é a fonte oficial.
-       */
-      if (!cancelled) {
         setPassportCreated(
-          false,
+          true,
+        );
+      } catch (error) {
+        console.error(
+          "Erro ao recuperar passaporte:",
+          error,
         );
 
-        setPassportId(null);
-      }
-    } finally {
-      if (!cancelled) {
-        setReady(true);
+        /*
+         * Não confia no localStorage
+         * como fonte oficial.
+         */
+        if (
+          !cancelled
+        ) {
+          setPassportCreated(
+            false,
+          );
+
+          setPassportId(
+            null,
+          );
+        }
+      } finally {
+        if (
+          !cancelled
+        ) {
+          setReady(
+            true,
+          );
+        }
       }
     }
-  }
 
-  void restorePassport();
+    void restorePassport();
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
+    return () => {
+      cancelled =
+        true;
+    };
+  }, []);
 
   /* =========================================================
      3. REGISTRA O QR CODE
-  =========================================================
-
-     Agora o frontend NÃO escolhe:
-
-     - o dia
-     - a coluna do banco
-     - se o QR está ativo
-     - o número do sorteio
-
-     Tudo isso será decidido pela rota:
-
-     POST /api/checkouts
   ========================================================= */
 
   useEffect(() => {
@@ -675,7 +727,9 @@ export default function Home() {
       return;
     }
 
-    if (!passportCreated) {
+    if (
+      !passportCreated
+    ) {
       return;
     }
 
@@ -683,19 +737,22 @@ export default function Home() {
       return;
     }
 
-    if (!checkoutType) {
+    if (
+      !checkoutType ||
+      !checkoutDate
+    ) {
       return;
     }
 
     const attemptKey =
-      `${passportId}:${checkoutType}`;
+      `${passportId}:${checkoutDate}:${checkoutType}`;
 
     /*
-     * Impede chamada duplicada
-     * causada por re-render.
+     * Evita request duplicado.
      */
     if (
-      checkoutAttemptRef.current ===
+      checkoutAttemptRef
+        .current ===
       attemptKey
     ) {
       return;
@@ -718,18 +775,22 @@ export default function Home() {
           await fetch(
             "/api/checkouts",
             {
-              method: "POST",
+              method:
+                "POST",
 
               headers: {
                 "Content-Type":
                   "application/json",
               },
 
-              body: JSON.stringify({
-                passportId,
-                checkout:
-                  checkoutType,
-              }),
+              body:
+                JSON.stringify({
+                  passportId,
+                  date:
+                    checkoutDate,
+                  checkout:
+                    checkoutType,
+                }),
             },
           );
 
@@ -753,9 +814,8 @@ export default function Home() {
         }
 
         /*
-         * Atualiza a tela usando
-         * exatamente o que está
-         * salvo no Supabase.
+         * Atualiza a tela
+         * usando os dados oficiais.
          */
         setCheckouts(
           checkoutsFromDatabase(
@@ -763,18 +823,13 @@ export default function Home() {
           ),
         );
 
-        /*
-         * Como agora a data vem
-         * do controle no banco,
-         * selecionamos automaticamente
-         * o dia em que o checkout
-         * acabou de ser registrado.
-         */
         if (
-          result.checkout?.date
+          result.checkout
+            ?.date
         ) {
           setSelectedDate(
-            result.checkout.date,
+            result.checkout
+              .date,
           );
         }
 
@@ -784,12 +839,16 @@ export default function Home() {
 
         if (
           result.eligible &&
-          result.raffleNumber != null
+          result.raffleNumber !=
+            null
         ) {
           setCheckoutMessage(
-            `Check-out registrado! Você está participando do sorteio com o número ${String(
+            `Check-out registrado! Seu número para o sorteio é ${String(
               result.raffleNumber,
-            ).padStart(3, "0")}.`,
+            ).padStart(
+              3,
+              "0",
+            )}.`,
           );
         } else {
           setCheckoutMessage(
@@ -798,21 +857,26 @@ export default function Home() {
         }
 
         /*
-         * Depois de registrar com
-         * sucesso, removemos o
-         * parâmetro da URL.
+         * Remove date e checkout
+         * após sucesso.
          *
-         * Assim um refresh da página
-         * não tenta registrar o mesmo
-         * QR novamente.
+         * Evita registrar novamente
+         * ao atualizar a página.
          */
         window.history.replaceState(
           {},
           "",
-          window.location.pathname,
+          window.location
+            .pathname,
         );
 
-        setCheckoutType(null);
+        setCheckoutType(
+          null,
+        );
+
+        setCheckoutDate(
+          null,
+        );
       } catch (error) {
         console.error(
           "Erro ao registrar check-out:",
@@ -835,10 +899,11 @@ export default function Home() {
     passportCreated,
     passportId,
     checkoutType,
+    checkoutDate,
   ]);
 
   /* =========================================================
-     4. SALVA UMA CÓPIA LOCAL DO PASSAPORTE
+     4. SALVA CÓPIA LOCAL
   ========================================================= */
 
   useEffect(() => {
@@ -846,18 +911,23 @@ export default function Home() {
       return;
     }
 
-    if (!passportCreated) {
+    if (
+      !passportCreated
+    ) {
       return;
     }
 
-    const data: SavedPassport = {
+    const data:
+      SavedPassport = {
       profile,
       checkouts,
     };
 
     window.localStorage.setItem(
       "passaporte-gsk-sipat-2026",
-      JSON.stringify(data),
+      JSON.stringify(
+        data,
+      ),
     );
   }, [
     ready,
@@ -867,7 +937,7 @@ export default function Home() {
   ]);
 
   /* =========================================================
-     5. CRIA OU RECUPERA O PASSAPORTE
+     5. CRIA OU RECUPERA CADASTRO
   ========================================================= */
 
   async function createPassport(
@@ -875,30 +945,38 @@ export default function Home() {
   ) {
     event.preventDefault();
 
-    setSavingPassport(true);
-    setFormError(null);
+    setSavingPassport(
+      true,
+    );
+
+    setFormError(
+      null,
+    );
 
     try {
       const response =
         await fetch(
           "/api/passaportes",
           {
-            method: "POST",
+            method:
+              "POST",
 
             headers: {
               "Content-Type":
                 "application/json",
             },
 
-            body: JSON.stringify(
-              profile,
-            ),
+            body:
+              JSON.stringify(
+                profile,
+              ),
           },
         );
 
       const result =
         (await response.json()) as {
-          passport?: PassportRow;
+          passport?:
+            PassportRow;
           error?: string;
         };
 
@@ -925,8 +1003,11 @@ export default function Home() {
       );
 
       setProfile({
-        name: row.nome,
-        email: row.email,
+        name:
+          row.nome,
+
+        email:
+          row.email,
       });
 
       setCheckouts(
@@ -940,7 +1021,8 @@ export default function Home() {
       );
     } catch (error) {
       setFormError(
-        error instanceof Error
+        error instanceof
+          Error
           ? error.message
           : "Não foi possível criar o passaporte.",
       );
@@ -952,7 +1034,7 @@ export default function Home() {
   }
 
   /* =========================================================
-     TELA DE CARREGAMENTO
+     CARREGAMENTO
   ========================================================= */
 
   if (!ready) {
@@ -964,7 +1046,8 @@ export default function Home() {
       (day) =>
         day.date ===
         selectedDate,
-    ) ?? checkouts[0];
+    ) ??
+    checkouts[0];
 
   /* =========================================================
      INTERFACE
@@ -1015,7 +1098,9 @@ export default function Home() {
             <div className="absolute -inset-8 -z-10 rounded-[48px] bg-[radial-gradient(circle_at_center,rgba(0,153,153,.18),transparent_66%)] blur-xl" />
 
             <form
-              onSubmit={createPassport}
+              onSubmit={
+                createPassport
+              }
               className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_80px_rgba(42,31,54,.12)] backdrop-blur-xl sm:p-8"
             >
               <div className="mb-7 flex items-center justify-between gap-4">
@@ -1028,27 +1113,22 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* AVISO QUANDO A PESSOA VEIO DE UM QR */}
+              {/* AVISO DE QR */}
 
-              {checkoutType && (
-                <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-4">
-                  <p className="font-bold text-primary">
-                    Check-out identificado
-                  </p>
+              {checkoutType &&
+                checkoutDate && (
+                  <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                    <p className="font-bold text-primary">
+                      Check-out identificado
+                    </p>
 
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Faça seu cadastro para
-                    registrar este check-out.
-                    Após o cadastro, o
-                    registro será realizado
-                    automaticamente.
-                  </p>
-                </div>
-              )}
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      Faça seu cadastro para registrar este check-out. Após o cadastro, ele será registrado automaticamente.
+                    </p>
+                  </div>
+                )}
 
               <div className="space-y-5">
-                {/* NOME */}
-
                 <div className="space-y-2">
                   <Label htmlFor="name">
                     Nome completo
@@ -1062,25 +1142,27 @@ export default function Home() {
                     value={
                       profile.name
                     }
-                    onChange={(event) =>
-                      setProfile({
-                        ...profile,
+                    onChange={(
+                      event,
+                    ) =>
+                      setProfile(
+                        {
+                          ...profile,
 
-                        name:
-                          event.target
-                            .value,
-                      })
+                          name:
+                            event
+                              .target
+                              .value,
+                        },
+                      )
                     }
                     className="h-12 rounded-xl bg-white px-4"
                   />
                 </div>
 
-                {/* EMAIL */}
-
                 <div className="space-y-2">
                   <Label htmlFor="email">
-                    E-mail corporativo ou
-                    pessoal
+                    E-mail corporativo ou pessoal
                   </Label>
 
                   <Input
@@ -1092,14 +1174,19 @@ export default function Home() {
                     value={
                       profile.email
                     }
-                    onChange={(event) =>
-                      setProfile({
-                        ...profile,
+                    onChange={(
+                      event,
+                    ) =>
+                      setProfile(
+                        {
+                          ...profile,
 
-                        email:
-                          event.target
-                            .value,
-                      })
+                          email:
+                            event
+                              .target
+                              .value,
+                        },
+                      )
                     }
                     className="h-12 rounded-xl bg-white px-4"
                   />
@@ -1133,9 +1220,7 @@ export default function Home() {
         ====================================================== */
 
         <section className="mx-auto w-full max-w-6xl px-5 pb-16 pt-4 sm:px-8 lg:px-10 lg:pt-8">
-          {/* =================================================
-              PARTICIPANTE
-          ================================================== */}
+          {/* PARTICIPANTE */}
 
           <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
@@ -1154,9 +1239,7 @@ export default function Home() {
               </h1>
 
               <p className="mt-2 text-muted-foreground">
-                Acompanhe seus
-                check-outs durante os
-                5 dias do evento.
+                Acompanhe seus check-outs durante os 5 dias do evento.
               </p>
             </div>
 
@@ -1179,9 +1262,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* =================================================
-              STATUS DO QR CODE
-          ================================================== */}
+          {/* STATUS QR */}
 
           {checkoutStatus ===
             "registering" && (
@@ -1224,9 +1305,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* =================================================
-              DIAS
-          ================================================== */}
+          {/* DIAS */}
 
           <div className="mb-6 overflow-x-auto">
             <div className="flex min-w-max gap-3">
@@ -1242,7 +1321,9 @@ export default function Home() {
 
                   return (
                     <button
-                      key={day.date}
+                      key={
+                        day.date
+                      }
                       type="button"
                       onClick={() =>
                         setSelectedDate(
@@ -1281,9 +1362,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* =================================================
-              DIA SELECIONADO
-          ================================================== */}
+          {/* DIA */}
 
           <div className="mb-6">
             <p className="text-sm font-extrabold uppercase tracking-[.2em] text-primary">
@@ -1296,9 +1375,7 @@ export default function Home() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* =================================================
-                PALESTRA
-            ================================================== */}
+            {/* PALESTRA */}
 
             <div className="rounded-[30px] border border-border bg-white p-6 shadow-[0_20px_60px_rgba(42,31,54,.10)]">
               <div className="mb-5 flex items-start justify-between gap-4">
@@ -1336,15 +1413,11 @@ export default function Home() {
               {!selectedDay.lecture ? (
                 <div className="rounded-2xl border border-border bg-muted/40 p-5">
                   <p className="font-bold">
-                    Check-out ainda não
-                    realizado
+                    Check-out ainda não realizado
                   </p>
 
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Escaneie o QR Code
-                    da palestra para
-                    registrar sua
-                    participação.
+                    Escaneie o QR Code da palestra para registrar sua participação.
                   </p>
                 </div>
               ) : (
@@ -1356,8 +1429,7 @@ export default function Home() {
 
                     <div>
                       <p className="font-bold">
-                        Participação
-                        registrada!
+                        Participação registrada!
                       </p>
 
                       {selectedDay.lectureMode && (
@@ -1373,8 +1445,7 @@ export default function Home() {
                         {selectedDay.lectureMode ===
                         "online" ? (
                           <>
-                            Obrigado por
-                            participar{" "}
+                            Obrigado por participar{" "}
                             <span className="font-semibold">
                               online
                             </span>{" "}
@@ -1388,8 +1459,7 @@ export default function Home() {
                           </>
                         ) : (
                           <>
-                            Obrigado por
-                            participar{" "}
+                            Obrigado por participar{" "}
                             <span className="font-semibold">
                               presencialmente
                             </span>{" "}
@@ -1409,9 +1479,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* =================================================
-                ATIVIDADE
-            ================================================== */}
+            {/* ATIVIDADE */}
 
             <div className="rounded-[30px] border border-border bg-white p-6 shadow-[0_20px_60px_rgba(42,31,54,.10)]">
               <div className="mb-5 flex items-start justify-between gap-4">
@@ -1449,21 +1517,15 @@ export default function Home() {
               {!selectedDay.activity ? (
                 <div className="rounded-2xl border border-border bg-muted/40 p-5">
                   <p className="font-bold">
-                    Check-out ainda não
-                    realizado
+                    Check-out ainda não realizado
                   </p>
 
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Escaneie o QR Code
-                    ao final da atividade
-                    para registrar seu
-                    check-out.
+                    Escaneie o QR Code ao final da atividade para registrar seu check-out.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* BRINDE */}
-
                   <div className="rounded-2xl border border-secondary/25 bg-secondary/10 p-5">
                     <div className="flex gap-3">
                       <div className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-white">
@@ -1476,31 +1538,22 @@ export default function Home() {
                         </p>
 
                         <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                          Você ganhou um
-                          brinde. Favor
-                          retirar em
-                          frente ao
-                          elevador.
+                          Você ganhou um brinde. Favor retirar em frente ao elevador.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* =================================================
-                      SORTEIO
-                  ================================================== */}
+                  {/* SORTEIO */}
 
                   {selectedDay.raffleNumber ? (
                     <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-center">
                       <p className="text-sm font-semibold text-muted-foreground">
-                        Você completou os
-                        dois check-outs
-                        deste dia.
+                        Você completou os dois check-outs deste dia.
                       </p>
 
                       <p className="mt-3 text-sm font-bold">
-                        Seu número para o
-                        sorteio é:
+                        Seu número para o sorteio é:
                       </p>
 
                       <p className="font-display mt-2 text-5xl font-black text-primary">
@@ -1512,8 +1565,7 @@ export default function Home() {
                   ) : (
                     <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
                       <p className="font-bold text-amber-950">
-                        Número de sorteio
-                        não liberado
+                        Número de sorteio não liberado
                       </p>
 
                       <p className="mt-2 text-sm leading-6 text-amber-900">
