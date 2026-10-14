@@ -6,7 +6,6 @@ import {
   BadgeCheck,
   Check,
   CircleUserRound,
-  RotateCcw,
   Stamp,
 } from "lucide-react";
 
@@ -68,90 +67,56 @@ const initialCheckouts: DayCheckout[] = [
   {
     date: "2026-10-19",
     label: "19/10",
-
     lectureName:
       "Cultura de segurança: aprendendo com nossos incidentes",
-
-    activityName:
-      "Quiz SIPAT",
-
+    activityName: "Quiz SIPAT",
     lecture: false,
     lectureMode: null,
-
     activity: false,
-
     raffleNumber: null,
   },
-
   {
     date: "2026-10-20",
     label: "20/10",
-
     lectureName:
       "Ver antes que acontece: percepção de risco no site e no trabalho remoto",
-
-    activityName:
-      "Escape SIPAT",
-
+    activityName: "Escape SIPAT",
     lecture: false,
     lectureMode: null,
-
     activity: false,
-
     raffleNumber: null,
   },
-
   {
     date: "2026-10-21",
     label: "21/10",
-
     lectureName:
       "Segurança no trânsito: prevenindo acidentes no trajeto",
-
-    activityName:
-      "Escape SIPAT",
-
+    activityName: "Escape SIPAT",
     lecture: false,
     lectureMode: null,
-
     activity: false,
-
     raffleNumber: null,
   },
-
   {
     date: "2026-10-22",
     label: "22/10",
-
     lectureName:
       "HIV hoje: prevenção, tratamento e combate ao estigma",
-
-    activityName:
-      "Desafio da Percepção",
-
+    activityName: "Desafio da Percepção",
     lecture: false,
     lectureMode: null,
-
     activity: false,
-
     raffleNumber: null,
   },
-
   {
     date: "2026-10-23",
     label: "23/10",
-
     lectureName:
       "O Ciclo Invível: Do Vazio aos Excessos",
-
-    activityName:
-      "Jogo da Memória",
-
+    activityName: "Jogo da Memória",
     lecture: false,
     lectureMode: null,
-
     activity: false,
-
     raffleNumber: null,
   },
 ];
@@ -194,9 +159,7 @@ function checkoutsFromDatabase(
   base: DayCheckout[] = initialCheckouts,
 ) {
   const raffleNumber =
-    formatRaffleNumber(
-      row.numero_sorteio
-    );
+    formatRaffleNumber(row.numero_sorteio);
 
   return base.map((day) => {
     const columns =
@@ -216,10 +179,8 @@ function checkoutsFromDatabase(
 
     return {
       ...day,
-
       lecture,
       activity,
-
       raffleNumber:
         lecture && activity
           ? raffleNumber
@@ -264,20 +225,6 @@ export default function Home() {
   const [formError, setFormError] =
     useState<string | null>(null);
 
-  /*
-   * =========================================================
-   * 1. LÊ O QR CODE PELA URL
-   * =========================================================
-   *
-   * PALESTRA ONLINE:
-   * /?date=2026-10-19&checkout=lecture-online
-   *
-   * PALESTRA PRESENCIAL:
-   * /?date=2026-10-19&checkout=lecture-presential
-   *
-   * ATIVIDADE:
-   * /?date=2026-10-19&checkout=activity
-   */
   useEffect(() => {
     const params =
       new URLSearchParams(
@@ -312,11 +259,6 @@ export default function Home() {
     }
   }, []);
 
-  /*
-   * =========================================================
-   * 2. RECUPERA O PASSAPORTE SALVO
-   * =========================================================
-   */
   useEffect(() => {
     let cancelled = false;
 
@@ -350,8 +292,7 @@ export default function Home() {
             const savedDay =
               localPassport?.checkouts?.find(
                 (day) =>
-                  day.date ===
-                  currentDay.date
+                  day.date === currentDay.date
               );
 
             if (!savedDay) {
@@ -360,22 +301,14 @@ export default function Home() {
 
             return {
               ...currentDay,
-
               lecture:
-                savedDay.lecture ??
-                false,
-
+                savedDay.lecture ?? false,
               lectureMode:
-                savedDay.lectureMode ??
-                null,
-
+                savedDay.lectureMode ?? null,
               activity:
-                savedDay.activity ??
-                false,
-
+                savedDay.activity ?? false,
               raffleNumber:
-                savedDay.raffleNumber ??
-                null,
+                savedDay.raffleNumber ?? null,
             };
           }
         );
@@ -508,11 +441,6 @@ export default function Home() {
     };
   }, []);
 
-  /*
-   * =========================================================
-   * 3. REGISTRA O CHECK-OUT DO QR CODE
-   * =========================================================
-   */
   useEffect(() => {
     if (!ready) {
       return;
@@ -531,10 +459,6 @@ export default function Home() {
 
     setCheckouts((current) =>
       current.map((day) => {
-        /*
-         * Só altera o dia correspondente
-         * ao QR Code.
-         */
         if (
           day.date !==
           checkoutDate
@@ -542,11 +466,6 @@ export default function Home() {
           return day;
         }
 
-        /*
-         * =====================================================
-         * PALESTRA ONLINE OU PRESENCIAL
-         * =====================================================
-         */
         if (
           checkoutType ===
             "lecture-online" ||
@@ -559,21 +478,12 @@ export default function Home() {
               ? "online"
               : "presential";
 
-          /*
-           * Se a palestra já estiver registrada,
-           * não troca a modalidade.
-           *
-           * Se for um registro antigo sem modalidade,
-           * preenche a modalidade atual.
-           */
           if (day.lecture) {
             if (!day.lectureMode) {
               return {
                 ...day,
-
                 lectureMode:
                   mode,
-
                 raffleNumber:
                   day.activity
                     ? participantRaffleNumber
@@ -584,19 +494,11 @@ export default function Home() {
             return day;
           }
 
-          /*
-           * Se a atividade já tiver sido feita,
-           * ao registrar a palestra o número
-           * também é liberado.
-           */
           return {
             ...day,
-
             lecture: true,
-
             lectureMode:
               mode,
-
             raffleNumber:
               day.activity
                 ? participantRaffleNumber
@@ -604,11 +506,6 @@ export default function Home() {
           };
         }
 
-        /*
-         * =====================================================
-         * ATIVIDADE
-         * =====================================================
-         */
         if (
           checkoutType ===
           "activity"
@@ -620,10 +517,6 @@ export default function Home() {
           let raffleNumber =
             day.raffleNumber;
 
-          /*
-           * Se a palestra já tiver sido feita,
-           * usa o número único do Supabase.
-           */
           if (
             day.lecture &&
             !raffleNumber
@@ -634,9 +527,7 @@ export default function Home() {
 
           return {
             ...day,
-
             activity: true,
-
             raffleNumber,
           };
         }
@@ -652,12 +543,6 @@ export default function Home() {
     participantRaffleNumber,
   ]);
 
-  /*
-   * =========================================================
-   * 4. SALVA O PASSAPORTE NO NAVEGADOR
-   * E NO SUPABASE
-   * =========================================================
-   */
   useEffect(() => {
     if (!ready) {
       return;
@@ -687,12 +572,10 @@ export default function Home() {
           `/api/passaportes/${passportId}`,
           {
             method: "PUT",
-
             headers: {
               "Content-Type":
                 "application/json",
             },
-
             body: JSON.stringify({
               checkouts,
             }),
@@ -712,11 +595,6 @@ export default function Home() {
     checkouts,
   ]);
 
-  /*
-   * =========================================================
-   * 5. CRIA O PASSAPORTE
-   * =========================================================
-   */
   async function createPassport(
     event: React.FormEvent<HTMLFormElement>
   ) {
@@ -731,12 +609,10 @@ export default function Home() {
           "/api/passaportes",
           {
             method: "POST",
-
             headers: {
               "Content-Type":
                 "application/json",
             },
-
             body:
               JSON.stringify(
                 profile
@@ -805,57 +681,6 @@ export default function Home() {
     }
   }
 
-  /*
-   * =========================================================
-   * 6. REINICIA A DEMONSTRAÇÃO
-   * =========================================================
-   */
-  function resetDemo() {
-    window.localStorage.removeItem(
-      "passaporte-gsk-sipat-2026"
-    );
-
-    window.localStorage.removeItem(
-      "passaporte-gsk-sipat-id"
-    );
-
-    setPassportId(
-      null
-    );
-
-    setParticipantRaffleNumber(
-      null
-    );
-
-    setFormError(
-      null
-    );
-
-    setProfile(
-      emptyProfile
-    );
-
-    setCheckouts(
-      initialCheckouts
-    );
-
-    setPassportCreated(
-      false
-    );
-
-    setCheckoutType(
-      null
-    );
-
-    setCheckoutDate(
-      null
-    );
-
-    setSelectedDate(
-      initialCheckouts[0].date
-    );
-  }
-
   if (!ready) {
     return null;
   }
@@ -871,10 +696,6 @@ export default function Home() {
     <main className="min-h-dvh overflow-hidden bg-background text-foreground">
 
       <div className="passport-grid fixed inset-0 -z-10 opacity-60" />
-
-      {/* =====================================================
-          CABEÇALHO
-      ====================================================== */}
 
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
 
@@ -909,30 +730,7 @@ export default function Home() {
 
         </div>
 
-        {passportCreated && (
-
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={resetDemo}
-            className="rounded-full text-muted-foreground hover:bg-white hover:text-foreground"
-          >
-
-            <RotateCcw className="size-4" />
-
-            <span className="hidden sm:inline">
-              Recomeçar demonstração
-            </span>
-
-          </Button>
-
-        )}
-
       </header>
-
-      {/* =====================================================
-          CADASTRO
-      ====================================================== */}
 
       {!passportCreated ? (
 
@@ -965,8 +763,6 @@ export default function Home() {
 
               <div className="space-y-5">
 
-                {/* NOME */}
-
                 <div className="space-y-2">
 
                   <Label htmlFor="name">
@@ -985,7 +781,6 @@ export default function Home() {
                     onChange={(e) =>
                       setProfile({
                         ...profile,
-
                         name:
                           e.target
                             .value,
@@ -995,8 +790,6 @@ export default function Home() {
                   />
 
                 </div>
-
-                {/* EMAIL */}
 
                 <div className="space-y-2">
 
@@ -1017,7 +810,6 @@ export default function Home() {
                     onChange={(e) =>
                       setProfile({
                         ...profile,
-
                         email:
                           e.target
                             .value,
@@ -1055,15 +847,7 @@ export default function Home() {
 
       ) : (
 
-        /* =====================================================
-            PASSAPORTE
-        ====================================================== */
-
         <section className="mx-auto w-full max-w-6xl px-5 pb-16 pt-4 sm:px-8 lg:px-10 lg:pt-8">
-
-          {/* =================================================
-              PARTICIPANTE
-          ================================================== */}
 
           <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
 
@@ -1114,10 +898,6 @@ export default function Home() {
             </div>
 
           </div>
-
-          {/* =================================================
-              DIAS
-          ================================================== */}
 
           <div className="mb-6 overflow-x-auto">
 
@@ -1187,10 +967,6 @@ export default function Home() {
 
           </div>
 
-          {/* =================================================
-              DIA SELECIONADO
-          ================================================== */}
-
           <div className="mb-6">
 
             <p className="text-sm font-extrabold uppercase tracking-[.2em] text-primary">
@@ -1204,10 +980,6 @@ export default function Home() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-
-            {/* =================================================
-                PALESTRA
-            ================================================== */}
 
             <div className="rounded-[30px] border border-border bg-white p-6 shadow-[0_20px_60px_rgba(42,31,54,.10)]">
 
@@ -1240,13 +1012,9 @@ export default function Home() {
                 >
 
                   {selectedDay.lecture ? (
-
                     <Check className="size-6" />
-
                   ) : (
-
                     <Stamp className="size-6" />
-
                   )}
 
                 </div>
@@ -1285,8 +1053,6 @@ export default function Home() {
                         Participação registrada!
                       </p>
 
-                      {/* MODALIDADE */}
-
                       {selectedDay.lectureMode && (
 
                         <p className="mt-2 text-xs font-extrabold uppercase tracking-[.15em] text-primary">
@@ -1300,62 +1066,47 @@ export default function Home() {
 
                       )}
 
-                      {/* MENSAGEM PERSONALIZADA */}
-
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
 
                         {selectedDay.lectureMode ===
                         "online" ? (
                           <>
-
                             Obrigado por participar{" "}
-
                             <span className="font-semibold">
                               online
                             </span>{" "}
-
                             da palestra{" "}
-
                             <span className="font-semibold">
                               {
                                 selectedDay.lectureName
                               }
                             </span>
                             .
-
                           </>
                         ) : selectedDay.lectureMode ===
                           "presential" ? (
                           <>
-
                             Obrigado por participar{" "}
-
                             <span className="font-semibold">
                               presencialmente
                             </span>{" "}
-
                             da palestra{" "}
-
                             <span className="font-semibold">
                               {
                                 selectedDay.lectureName
                               }
                             </span>
                             .
-
                           </>
                         ) : (
                           <>
-
                             Obrigado por participar da palestra{" "}
-
                             <span className="font-semibold">
                               {
                                 selectedDay.lectureName
                               }
                             </span>
                             .
-
                           </>
                         )}
 
@@ -1370,10 +1121,6 @@ export default function Home() {
               )}
 
             </div>
-
-            {/* =================================================
-                ATIVIDADE
-            ================================================== */}
 
             <div className="rounded-[30px] border border-border bg-white p-6 shadow-[0_20px_60px_rgba(42,31,54,.10)]">
 
@@ -1406,13 +1153,9 @@ export default function Home() {
                 >
 
                   {selectedDay.activity ? (
-
                     <Check className="size-6" />
-
                   ) : (
-
                     <Stamp className="size-6" />
-
                   )}
 
                 </div>
@@ -1436,8 +1179,6 @@ export default function Home() {
               ) : (
 
                 <div className="space-y-4">
-
-                  {/* BRINDE */}
 
                   <div className="rounded-2xl border border-secondary/25 bg-secondary/10 p-5">
 
@@ -1465,16 +1206,12 @@ export default function Home() {
 
                   </div>
 
-                  {/* =================================================
-                      SORTEIO
-                  ================================================== */}
-
                   {selectedDay.raffleNumber ? (
 
                     <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-center">
 
                       <p className="text-sm font-semibold text-muted-foreground">
-                        Obrigado por participar!
+                        Você participou da palestra deste dia.
                       </p>
 
                       <p className="mt-3 text-sm font-bold">
@@ -1482,11 +1219,9 @@ export default function Home() {
                       </p>
 
                       <p className="font-display mt-2 text-5xl font-black text-primary">
-
                         {
                           selectedDay.raffleNumber
                         }
-
                       </p>
 
                     </div>
