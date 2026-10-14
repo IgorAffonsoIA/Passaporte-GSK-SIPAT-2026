@@ -55,6 +55,7 @@ type PassportRow = {
   id: string;
   nome: string;
   email: string;
+  numero_sorteio: number | null;
   [column: string]: unknown;
 };
 
@@ -155,26 +156,36 @@ const initialCheckouts: DayCheckout[] = [
   },
 ];
 
+function formatRaffleNumber(
+  number: number | null | undefined
+) {
+  if (number == null) {
+    return null;
+  }
+
+  return String(number).padStart(3, "0");
+}
+
 const databaseColumnsByDate = {
   "2026-10-19": {
-    lecture: "visto_palestra_dia19",
-    activity: "visto_atividade_dia19",
+    lecture: "checkout_palestra_dia19",
+    activity: "checkout_atividade_dia19",
   },
   "2026-10-20": {
-    lecture: "visto_palestra_dia20",
-    activity: "visto_atividade_dia20",
+    lecture: "checkout_palestra_dia20",
+    activity: "checkout_atividade_dia20",
   },
   "2026-10-21": {
-    lecture: "visto_palestra_dia21",
-    activity: "visto_atividade_dia21",
+    lecture: "checkout_palestra_dia21",
+    activity: "checkout_atividade_dia21",
   },
   "2026-10-22": {
-    lecture: "visto_palestra_dia22",
-    activity: "visto_atividade_dia22",
+    lecture: "checkout_palestra_dia22",
+    activity: "checkout_atividade_dia22",
   },
   "2026-10-23": {
-    lecture: "visto_palestra_dia23",
-    activity: "visto_atividade_dia23",
+    lecture: "checkout_palestra_dia23",
+    activity: "checkout_atividade_dia23",
   },
 } as const;
 
@@ -182,19 +193,37 @@ function checkoutsFromDatabase(
   row: PassportRow,
   base: DayCheckout[] = initialCheckouts,
 ) {
+  const raffleNumber =
+    formatRaffleNumber(
+      row.numero_sorteio
+    );
+
   return base.map((day) => {
-    const columns = databaseColumnsByDate[
-      day.date as keyof typeof databaseColumnsByDate
-    ];
+    const columns =
+      databaseColumnsByDate[
+        day.date as keyof typeof databaseColumnsByDate
+      ];
 
     if (!columns) {
       return day;
     }
 
+    const lecture =
+      row[columns.lecture] === true;
+
+    const activity =
+      row[columns.activity] === true;
+
     return {
       ...day,
-      lecture: row[columns.lecture] === true,
-      activity: row[columns.activity] === true,
+
+      lecture,
+      activity,
+
+      raffleNumber:
+        lecture && activity
+          ? raffleNumber
+          : null,
     };
   });
 }
@@ -223,6 +252,11 @@ export default function Home() {
 
   const [passportId, setPassportId] =
     useState<string | null>(null);
+
+  const [
+    participantRaffleNumber,
+    setParticipantRaffleNumber,
+  ] = useState<string | null>(null);
 
   const [savingPassport, setSavingPassport] =
     useState(false);
@@ -288,13 +322,16 @@ export default function Home() {
 
     async function restorePassport() {
       let localPassport: SavedPassport | null = null;
-      const saved = window.localStorage.getItem(
-        "passaporte-gsk-sipat-2026"
-      );
+
+      const saved =
+        window.localStorage.getItem(
+          "passaporte-gsk-sipat-2026"
+        );
 
       if (saved) {
         try {
-          localPassport = JSON.parse(saved) as SavedPassport;
+          localPassport =
+            JSON.parse(saved) as SavedPassport;
         } catch {
           window.localStorage.removeItem(
             "passaporte-gsk-sipat-2026"
@@ -307,47 +344,85 @@ export default function Home() {
         ...localPassport?.profile,
       };
 
-      const localCheckouts = initialCheckouts.map((currentDay) => {
-        const savedDay = localPassport?.checkouts?.find(
-          (day) => day.date === currentDay.date
+      const localCheckouts =
+        initialCheckouts.map(
+          (currentDay) => {
+            const savedDay =
+              localPassport?.checkouts?.find(
+                (day) =>
+                  day.date ===
+                  currentDay.date
+              );
+
+            if (!savedDay) {
+              return currentDay;
+            }
+
+            return {
+              ...currentDay,
+
+              lecture:
+                savedDay.lecture ??
+                false,
+
+              lectureMode:
+                savedDay.lectureMode ??
+                null,
+
+              activity:
+                savedDay.activity ??
+                false,
+
+              raffleNumber:
+                savedDay.raffleNumber ??
+                null,
+            };
+          }
         );
 
-        if (!savedDay) {
-          return currentDay;
-        }
-
-        return {
-          ...currentDay,
-          lecture: savedDay.lecture ?? false,
-          lectureMode: savedDay.lectureMode ?? null,
-          activity: savedDay.activity ?? false,
-          raffleNumber: savedDay.raffleNumber ?? null,
-        };
-      });
-
-      let storedId = window.localStorage.getItem(
-        "passaporte-gsk-sipat-id"
-      );
+      let storedId =
+        window.localStorage.getItem(
+          "passaporte-gsk-sipat-id"
+        );
 
       try {
-        let response: Response | null = null;
+        let response: Response | null =
+          null;
 
         if (storedId) {
-          response = await fetch(`/api/passaportes/${storedId}`);
-        } else if (localProfile.name && localProfile.email) {
-          response = await fetch("/api/passaportes", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(localProfile),
-          });
+          response = await fetch(
+            `/api/passaportes/${storedId}`
+          );
+        } else if (
+          localProfile.name &&
+          localProfile.email
+        ) {
+          response = await fetch(
+            "/api/passaportes",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify(
+                localProfile
+              ),
+            }
+          );
         }
 
         if (response?.ok) {
-          const result = (await response.json()) as {
-            passport: PassportRow;
-          };
-          const row = result.passport;
-          storedId = row.id;
+          const result =
+            (await response.json()) as {
+              passport: PassportRow;
+            };
+
+          const row =
+            result.passport;
+
+          storedId =
+            row.id;
 
           window.localStorage.setItem(
             "passaporte-gsk-sipat-id",
@@ -355,10 +430,31 @@ export default function Home() {
           );
 
           if (!cancelled) {
-            setPassportId(row.id);
-            setProfile({ name: row.nome, email: row.email });
-            setCheckouts(checkoutsFromDatabase(row, localCheckouts));
-            setPassportCreated(true);
+            setPassportId(
+              row.id
+            );
+
+            setParticipantRaffleNumber(
+              formatRaffleNumber(
+                row.numero_sorteio
+              )
+            );
+
+            setProfile({
+              name: row.nome,
+              email: row.email,
+            });
+
+            setCheckouts(
+              checkoutsFromDatabase(
+                row,
+                localCheckouts
+              )
+            );
+
+            setPassportCreated(
+              true
+            );
           }
         } else if (!cancelled) {
           if (storedId) {
@@ -368,16 +464,35 @@ export default function Home() {
           }
 
           if (localPassport) {
-            setProfile(localProfile);
-            setCheckouts(localCheckouts);
-            setPassportCreated(true);
+            setProfile(
+              localProfile
+            );
+
+            setCheckouts(
+              localCheckouts
+            );
+
+            setPassportCreated(
+              true
+            );
           }
         }
       } catch {
-        if (!cancelled && localPassport) {
-          setProfile(localProfile);
-          setCheckouts(localCheckouts);
-          setPassportCreated(true);
+        if (
+          !cancelled &&
+          localPassport
+        ) {
+          setProfile(
+            localProfile
+          );
+
+          setCheckouts(
+            localCheckouts
+          );
+
+          setPassportCreated(
+            true
+          );
         }
       } finally {
         if (!cancelled) {
@@ -445,29 +560,47 @@ export default function Home() {
               : "presential";
 
           /*
-           * Se a palestra já foi registrada,
+           * Se a palestra já estiver registrada,
            * não troca a modalidade.
            *
-           * Exceção: registros antigos que
-           * ainda não possuem modalidade.
+           * Se for um registro antigo sem modalidade,
+           * preenche a modalidade atual.
            */
           if (day.lecture) {
             if (!day.lectureMode) {
               return {
                 ...day,
-                lectureMode: mode,
+
+                lectureMode:
+                  mode,
+
+                raffleNumber:
+                  day.activity
+                    ? participantRaffleNumber
+                    : day.raffleNumber,
               };
             }
 
             return day;
           }
 
+          /*
+           * Se a atividade já tiver sido feita,
+           * ao registrar a palestra o número
+           * também é liberado.
+           */
           return {
             ...day,
 
             lecture: true,
 
-            lectureMode: mode,
+            lectureMode:
+              mode,
+
+            raffleNumber:
+              day.activity
+                ? participantRaffleNumber
+                : day.raffleNumber,
           };
         }
 
@@ -488,25 +621,15 @@ export default function Home() {
             day.raffleNumber;
 
           /*
-           * Continua valendo a mesma regra:
-           *
-           * palestra online OU presencial
-           * contam como participação.
-           *
-           * Basta lecture === true.
+           * Se a palestra já tiver sido feita,
+           * usa o número único do Supabase.
            */
           if (
             day.lecture &&
             !raffleNumber
           ) {
-            raffleNumber = (
-              Math.floor(
-                Math.random() *
-                  999
-              ) + 1
-            )
-              .toString()
-              .padStart(3, "0");
+            raffleNumber =
+              participantRaffleNumber;
           }
 
           return {
@@ -526,11 +649,13 @@ export default function Home() {
     passportCreated,
     checkoutType,
     checkoutDate,
+    participantRaffleNumber,
   ]);
 
   /*
    * =========================================================
    * 4. SALVA O PASSAPORTE NO NAVEGADOR
+   * E NO SUPABASE
    * =========================================================
    */
   useEffect(() => {
@@ -556,15 +681,29 @@ export default function Home() {
       return;
     }
 
-    const timeout = window.setTimeout(() => {
-      void fetch(`/api/passaportes/${passportId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkouts }),
-      });
-    }, 300);
+    const timeout =
+      window.setTimeout(() => {
+        void fetch(
+          `/api/passaportes/${passportId}`,
+          {
+            method: "PUT",
 
-    return () => window.clearTimeout(timeout);
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              checkouts,
+            }),
+          }
+        );
+      }, 300);
+
+    return () =>
+      window.clearTimeout(
+        timeout
+      );
   }, [
     ready,
     passportCreated,
@@ -587,31 +726,72 @@ export default function Home() {
     setFormError(null);
 
     try {
-      const response = await fetch("/api/passaportes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
-      });
-      const result = (await response.json()) as {
-        passport?: PassportRow;
-        error?: string;
-      };
+      const response =
+        await fetch(
+          "/api/passaportes",
+          {
+            method: "POST",
 
-      if (!response.ok || !result.passport) {
-        throw new Error(result.error ?? "Não foi possível criar o passaporte.");
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                profile
+              ),
+          }
+        );
+
+      const result =
+        (await response.json()) as {
+          passport?: PassportRow;
+          error?: string;
+        };
+
+      if (
+        !response.ok ||
+        !result.passport
+      ) {
+        throw new Error(
+          result.error ??
+            "Não foi possível criar o passaporte."
+        );
       }
 
-      const row = result.passport;
+      const row =
+        result.passport;
 
       window.localStorage.setItem(
         "passaporte-gsk-sipat-id",
         row.id,
       );
 
-      setPassportId(row.id);
-      setProfile({ name: row.nome, email: row.email });
-      setCheckouts(checkoutsFromDatabase(row));
-      setPassportCreated(true);
+      setPassportId(
+        row.id
+      );
+
+      setParticipantRaffleNumber(
+        formatRaffleNumber(
+          row.numero_sorteio
+        )
+      );
+
+      setProfile({
+        name: row.nome,
+        email: row.email,
+      });
+
+      setCheckouts(
+        checkoutsFromDatabase(
+          row
+        )
+      );
+
+      setPassportCreated(
+        true
+      );
     } catch (error) {
       setFormError(
         error instanceof Error
@@ -619,7 +799,9 @@ export default function Home() {
           : "Não foi possível criar o passaporte.",
       );
     } finally {
-      setSavingPassport(false);
+      setSavingPassport(
+        false
+      );
     }
   }
 
@@ -637,21 +819,37 @@ export default function Home() {
       "passaporte-gsk-sipat-id"
     );
 
-    setPassportId(null);
+    setPassportId(
+      null
+    );
 
-    setFormError(null);
+    setParticipantRaffleNumber(
+      null
+    );
 
-    setProfile(emptyProfile);
+    setFormError(
+      null
+    );
+
+    setProfile(
+      emptyProfile
+    );
 
     setCheckouts(
       initialCheckouts
     );
 
-    setPassportCreated(false);
+    setPassportCreated(
+      false
+    );
 
-    setCheckoutType(null);
+    setCheckoutType(
+      null
+    );
 
-    setCheckoutDate(null);
+    setCheckoutDate(
+      null
+    );
 
     setSelectedDate(
       initialCheckouts[0].date
@@ -1092,10 +1290,12 @@ export default function Home() {
                       {selectedDay.lectureMode && (
 
                         <p className="mt-2 text-xs font-extrabold uppercase tracking-[.15em] text-primary">
+
                           {selectedDay.lectureMode ===
                           "online"
                             ? "Modalidade online"
                             : "Modalidade presencial"}
+
                         </p>
 
                       )}
@@ -1107,42 +1307,55 @@ export default function Home() {
                         {selectedDay.lectureMode ===
                         "online" ? (
                           <>
+
                             Obrigado por participar{" "}
+
                             <span className="font-semibold">
                               online
                             </span>{" "}
+
                             da palestra{" "}
+
                             <span className="font-semibold">
                               {
                                 selectedDay.lectureName
                               }
                             </span>
                             .
+
                           </>
                         ) : selectedDay.lectureMode ===
                           "presential" ? (
                           <>
+
                             Obrigado por participar{" "}
+
                             <span className="font-semibold">
                               presencialmente
                             </span>{" "}
+
                             da palestra{" "}
+
                             <span className="font-semibold">
                               {
                                 selectedDay.lectureName
                               }
                             </span>
                             .
+
                           </>
                         ) : (
                           <>
+
                             Obrigado por participar da palestra{" "}
+
                             <span className="font-semibold">
                               {
                                 selectedDay.lectureName
                               }
                             </span>
                             .
+
                           </>
                         )}
 
@@ -1261,7 +1474,7 @@ export default function Home() {
                     <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-center">
 
                       <p className="text-sm font-semibold text-muted-foreground">
-                        Você participou da palestra deste dia.
+                        Obrigado por participar!
                       </p>
 
                       <p className="mt-3 text-sm font-bold">
@@ -1269,9 +1482,11 @@ export default function Home() {
                       </p>
 
                       <p className="font-display mt-2 text-5xl font-black text-primary">
+
                         {
                           selectedDay.raffleNumber
                         }
+
                       </p>
 
                     </div>

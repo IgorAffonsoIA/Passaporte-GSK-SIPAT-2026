@@ -18,24 +18,24 @@ type UpdatePassportBody = {
 
 const columnsByDate = {
   "2026-10-19": {
-    lecture: "visto_palestra_dia19",
-    activity: "visto_atividade_dia19",
+    lecture: "checkout_palestra_dia19",
+    activity: "checkout_atividade_dia19",
   },
   "2026-10-20": {
-    lecture: "visto_palestra_dia20",
-    activity: "visto_atividade_dia20",
+    lecture: "checkout_palestra_dia20",
+    activity: "checkout_atividade_dia20",
   },
   "2026-10-21": {
-    lecture: "visto_palestra_dia21",
-    activity: "visto_atividade_dia21",
+    lecture: "checkout_palestra_dia21",
+    activity: "checkout_atividade_dia21",
   },
   "2026-10-22": {
-    lecture: "visto_palestra_dia22",
-    activity: "visto_atividade_dia22",
+    lecture: "checkout_palestra_dia22",
+    activity: "checkout_atividade_dia22",
   },
   "2026-10-23": {
-    lecture: "visto_palestra_dia23",
-    activity: "visto_atividade_dia23",
+    lecture: "checkout_palestra_dia23",
+    activity: "checkout_atividade_dia23",
   },
 } as const;
 
