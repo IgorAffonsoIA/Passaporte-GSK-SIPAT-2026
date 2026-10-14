@@ -1,11 +1,17 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import {
   BadgeCheck,
   Check,
   CircleUserRound,
+  LoaderCircle,
   Stamp,
 } from "lucide-react";
 
@@ -14,6 +20,10 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+/* =========================================================
+   TIPOS
+========================================================= */
 
 type Profile = {
   name: string;
@@ -54,392 +64,611 @@ type PassportRow = {
   id: string;
   nome: string;
   email: string;
-  numero_sorteio: number | null;
+
   [column: string]: unknown;
 };
+
+type CheckoutResponse = {
+  success?: boolean;
+
+  checkout?: {
+    date: string;
+    type: CheckoutType;
+  };
+
+  passport?: PassportRow;
+
+  eligible?: boolean;
+
+  raffleNumber?: number | null;
+
+  error?: string;
+
+  code?: string;
+};
+
+type CheckoutStatus =
+  | "idle"
+  | "registering"
+  | "success"
+  | "error";
+
+/* =========================================================
+   PERFIL INICIAL
+========================================================= */
 
 const emptyProfile: Profile = {
   name: "",
   email: "",
 };
 
+/* =========================================================
+   DIAS DO EVENTO
+========================================================= */
+
 const initialCheckouts: DayCheckout[] = [
   {
     date: "2026-10-19",
     label: "19/10",
+
     lectureName:
       "Cultura de segurança: aprendendo com nossos incidentes",
-    activityName: "Quiz SIPAT",
+
+    activityName:
+      "Quiz SIPAT",
+
     lecture: false,
     lectureMode: null,
+
     activity: false,
+
     raffleNumber: null,
   },
+
   {
     date: "2026-10-20",
     label: "20/10",
+
     lectureName:
       "Ver antes que acontece: percepção de risco no site e no trabalho remoto",
-    activityName: "Escape SIPAT",
+
+    activityName:
+      "Escape SIPAT",
+
     lecture: false,
     lectureMode: null,
+
     activity: false,
+
     raffleNumber: null,
   },
+
   {
     date: "2026-10-21",
     label: "21/10",
+
     lectureName:
       "Segurança no trânsito: prevenindo acidentes no trajeto",
-    activityName: "Escape SIPAT",
+
+    activityName:
+      "Escape SIPAT",
+
     lecture: false,
     lectureMode: null,
+
     activity: false,
+
     raffleNumber: null,
   },
+
   {
     date: "2026-10-22",
     label: "22/10",
+
     lectureName:
       "HIV hoje: prevenção, tratamento e combate ao estigma",
-    activityName: "Desafio da Percepção",
+
+    activityName:
+      "Desafio da Percepção",
+
     lecture: false,
     lectureMode: null,
+
     activity: false,
+
     raffleNumber: null,
   },
+
   {
     date: "2026-10-23",
     label: "23/10",
+
     lectureName:
       "O Ciclo Invível: Do Vazio aos Excessos",
-    activityName: "Jogo da Memória",
+
+    activityName:
+      "Jogo da Memória",
+
     lecture: false,
     lectureMode: null,
+
     activity: false,
+
     raffleNumber: null,
   },
 ];
 
-function formatRaffleNumber(
-  number: number | null | undefined
-) {
-  if (number == null) {
-    return null;
-  }
-
-  return String(number).padStart(3, "0");
-}
+/* =========================================================
+   COLUNAS DO SUPABASE
+========================================================= */
 
 const databaseColumnsByDate = {
   "2026-10-19": {
-    lecture: "checkout_palestra_dia19",
-    activity: "checkout_atividade_dia19",
+    online:
+      "checkout_palestra_online_dia19",
+
+    presential:
+      "checkout_palestra_presencial_dia19",
+
+    activity:
+      "checkout_atividade_dia19",
+
+    raffle:
+      "numero_sorteio_dia19",
   },
+
   "2026-10-20": {
-    lecture: "checkout_palestra_dia20",
-    activity: "checkout_atividade_dia20",
+    online:
+      "checkout_palestra_online_dia20",
+
+    presential:
+      "checkout_palestra_presencial_dia20",
+
+    activity:
+      "checkout_atividade_dia20",
+
+    raffle:
+      "numero_sorteio_dia20",
   },
+
   "2026-10-21": {
-    lecture: "checkout_palestra_dia21",
-    activity: "checkout_atividade_dia21",
+    online:
+      "checkout_palestra_online_dia21",
+
+    presential:
+      "checkout_palestra_presencial_dia21",
+
+    activity:
+      "checkout_atividade_dia21",
+
+    raffle:
+      "numero_sorteio_dia21",
   },
+
   "2026-10-22": {
-    lecture: "checkout_palestra_dia22",
-    activity: "checkout_atividade_dia22",
+    online:
+      "checkout_palestra_online_dia22",
+
+    presential:
+      "checkout_palestra_presencial_dia22",
+
+    activity:
+      "checkout_atividade_dia22",
+
+    raffle:
+      "numero_sorteio_dia22",
   },
+
   "2026-10-23": {
-    lecture: "checkout_palestra_dia23",
-    activity: "checkout_atividade_dia23",
+    online:
+      "checkout_palestra_online_dia23",
+
+    presential:
+      "checkout_palestra_presencial_dia23",
+
+    activity:
+      "checkout_atividade_dia23",
+
+    raffle:
+      "numero_sorteio_dia23",
   },
 } as const;
 
+/* =========================================================
+   FORMATA O NÚMERO DO SORTEIO
+========================================================= */
+
+function formatRaffleNumber(
+  value: unknown,
+) {
+  if (
+    typeof value !== "number" &&
+    typeof value !== "string"
+  ) {
+    return null;
+  }
+
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  return String(number).padStart(
+    3,
+    "0",
+  );
+}
+
+/* =========================================================
+   CONVERTE O REGISTRO DO SUPABASE PARA O FORMATO DA TELA
+========================================================= */
+
 function checkoutsFromDatabase(
   row: PassportRow,
-  base: DayCheckout[] = initialCheckouts,
 ) {
-  const raffleNumber =
-    formatRaffleNumber(row.numero_sorteio);
+  return initialCheckouts.map(
+    (day) => {
+      const columns =
+        databaseColumnsByDate[
+          day.date as keyof typeof databaseColumnsByDate
+        ];
 
-  return base.map((day) => {
-    const columns =
-      databaseColumnsByDate[
-        day.date as keyof typeof databaseColumnsByDate
-      ];
+      if (!columns) {
+        return day;
+      }
 
-    if (!columns) {
-      return day;
-    }
+      const online =
+        row[columns.online] === true;
 
-    const lecture =
-      row[columns.lecture] === true;
+      const presential =
+        row[columns.presential] ===
+        true;
 
-    const activity =
-      row[columns.activity] === true;
+      let lectureMode: LectureMode =
+        null;
 
-    return {
-      ...day,
-      lecture,
-      activity,
-      raffleNumber:
-        lecture && activity
-          ? raffleNumber
-          : null,
-    };
-  });
+      if (online) {
+        lectureMode = "online";
+      } else if (presential) {
+        lectureMode =
+          "presential";
+      }
+
+      return {
+        ...day,
+
+        lecture:
+          online || presential,
+
+        lectureMode,
+
+        activity:
+          row[columns.activity] ===
+          true,
+
+        raffleNumber:
+          formatRaffleNumber(
+            row[columns.raffle],
+          ),
+      };
+    },
+  );
 }
+
+/* =========================================================
+   VALIDA O TIPO DO QR CODE
+========================================================= */
+
+function isCheckoutType(
+  value: string | null,
+): value is CheckoutType {
+  return (
+    value === "lecture-online" ||
+    value ===
+      "lecture-presential" ||
+    value === "activity"
+  );
+}
+
+/* =========================================================
+   COMPONENTE PRINCIPAL
+========================================================= */
 
 export default function Home() {
   const [profile, setProfile] =
-    useState<Profile>(emptyProfile);
+    useState<Profile>(
+      emptyProfile,
+    );
 
-  const [passportCreated, setPassportCreated] =
-    useState(false);
+  const [
+    passportCreated,
+    setPassportCreated,
+  ] = useState(false);
 
-  const [checkouts, setCheckouts] =
-    useState<DayCheckout[]>(initialCheckouts);
+  const [
+    checkouts,
+    setCheckouts,
+  ] = useState<DayCheckout[]>(
+    initialCheckouts,
+  );
 
-  const [checkoutType, setCheckoutType] =
-    useState<CheckoutType | null>(null);
+  const [
+    checkoutType,
+    setCheckoutType,
+  ] =
+    useState<CheckoutType | null>(
+      null,
+    );
 
-  const [checkoutDate, setCheckoutDate] =
-    useState<string | null>(null);
-
-  const [selectedDate, setSelectedDate] =
-    useState(initialCheckouts[0].date);
+  const [
+    selectedDate,
+    setSelectedDate,
+  ] = useState(
+    initialCheckouts[0].date,
+  );
 
   const [ready, setReady] =
     useState(false);
 
-  const [passportId, setPassportId] =
+  const [
+    passportId,
+    setPassportId,
+  ] =
     useState<string | null>(null);
 
   const [
-    participantRaffleNumber,
-    setParticipantRaffleNumber,
-  ] = useState<string | null>(null);
+    savingPassport,
+    setSavingPassport,
+  ] = useState(false);
 
-  const [savingPassport, setSavingPassport] =
-    useState(false);
-
-  const [formError, setFormError] =
+  const [
+    formError,
+    setFormError,
+  ] =
     useState<string | null>(null);
+
+  const [
+    checkoutStatus,
+    setCheckoutStatus,
+  ] =
+    useState<CheckoutStatus>(
+      "idle",
+    );
+
+  const [
+    checkoutMessage,
+    setCheckoutMessage,
+  ] =
+    useState<string | null>(null);
+
+  /*
+   * Impede que o React envie várias
+   * requisições do mesmo QR na mesma
+   * abertura da página.
+   */
+  const checkoutAttemptRef =
+    useRef<string | null>(null);
+
+  /* =========================================================
+     1. LÊ O QR CODE PELA URL
+  =========================================================
+
+     Agora existem apenas 3 links:
+
+     PALESTRA ONLINE:
+     /?checkout=lecture-online
+
+     PALESTRA PRESENCIAL:
+     /?checkout=lecture-presential
+
+     ATIVIDADE:
+     /?checkout=activity
+
+     A data não vem mais no link.
+
+     Quem informa o dia atual é
+     public.controle_checkouts.
+  ========================================================= */
 
   useEffect(() => {
     const params =
       new URLSearchParams(
-        window.location.search
+        window.location.search,
       );
 
     const checkout =
       params.get("checkout");
 
-    const date =
-      params.get("date");
-
     if (
-      checkout === "lecture-online" ||
-      checkout === "lecture-presential" ||
-      checkout === "activity"
+      isCheckoutType(checkout)
     ) {
-      setCheckoutType(checkout);
-    }
-
-    if (date) {
-      const validDate =
-        initialCheckouts.some(
-          (day) =>
-            day.date === date
-        );
-
-      if (validDate) {
-        setCheckoutDate(date);
-        setSelectedDate(date);
-      }
+      setCheckoutType(
+        checkout,
+      );
     }
   }, []);
 
+  /* =========================================================
+     2. RECUPERA O PASSAPORTE
+  ========================================================= */
+
   useEffect(() => {
-    let cancelled = false;
+  let cancelled = false;
 
-    async function restorePassport() {
-      let localPassport: SavedPassport | null = null;
+  async function restorePassport() {
+    const storedId =
+      window.localStorage.getItem(
+        "passaporte-gsk-sipat-id",
+      );
 
-      const saved =
-        window.localStorage.getItem(
-          "passaporte-gsk-sipat-2026"
-        );
-
-      if (saved) {
-        try {
-          localPassport =
-            JSON.parse(saved) as SavedPassport;
-        } catch {
-          window.localStorage.removeItem(
-            "passaporte-gsk-sipat-2026"
-          );
-        }
+    /*
+     * Se não existe UUID salvo,
+     * não existe sessão/localização
+     * de passaporte para recuperar.
+     */
+    if (!storedId) {
+      if (!cancelled) {
+        setReady(true);
       }
 
-      const localProfile = {
-        ...emptyProfile,
-        ...localPassport?.profile,
-      };
+      return;
+    }
 
-      const localCheckouts =
-        initialCheckouts.map(
-          (currentDay) => {
-            const savedDay =
-              localPassport?.checkouts?.find(
-                (day) =>
-                  day.date === currentDay.date
-              );
+    try {
+      const response = await fetch(
+        `/api/passaportes/${storedId}`,
+        {
+          cache: "no-store",
+        },
+      );
 
-            if (!savedDay) {
-              return currentDay;
-            }
-
-            return {
-              ...currentDay,
-              lecture:
-                savedDay.lecture ?? false,
-              lectureMode:
-                savedDay.lectureMode ?? null,
-              activity:
-                savedDay.activity ?? false,
-              raffleNumber:
-                savedDay.raffleNumber ?? null,
-            };
-          }
+      /*
+       * =====================================================
+       * PASSAPORTE NÃO EXISTE MAIS NO SUPABASE
+       * =====================================================
+       *
+       * Remove todos os dados locais e
+       * volta para a tela de cadastro.
+       */
+      if (response.status === 404) {
+        window.localStorage.removeItem(
+          "passaporte-gsk-sipat-id",
         );
 
-      let storedId =
-        window.localStorage.getItem(
-          "passaporte-gsk-sipat-id"
+        window.localStorage.removeItem(
+          "passaporte-gsk-sipat-2026",
         );
 
-      try {
-        let response: Response | null =
-          null;
+        if (!cancelled) {
+          setPassportId(null);
 
-        if (storedId) {
-          response = await fetch(
-            `/api/passaportes/${storedId}`
-          );
-        } else if (
-          localProfile.name &&
-          localProfile.email
-        ) {
-          response = await fetch(
-            "/api/passaportes",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-              body: JSON.stringify(
-                localProfile
-              ),
-            }
-          );
-        }
-
-        if (response?.ok) {
-          const result =
-            (await response.json()) as {
-              passport: PassportRow;
-            };
-
-          const row =
-            result.passport;
-
-          storedId =
-            row.id;
-
-          window.localStorage.setItem(
-            "passaporte-gsk-sipat-id",
-            row.id,
-          );
-
-          if (!cancelled) {
-            setPassportId(
-              row.id
-            );
-
-            setParticipantRaffleNumber(
-              formatRaffleNumber(
-                row.numero_sorteio
-              )
-            );
-
-            setProfile({
-              name: row.nome,
-              email: row.email,
-            });
-
-            setCheckouts(
-              checkoutsFromDatabase(
-                row,
-                localCheckouts
-              )
-            );
-
-            setPassportCreated(
-              true
-            );
-          }
-        } else if (!cancelled) {
-          if (storedId) {
-            window.localStorage.removeItem(
-              "passaporte-gsk-sipat-id"
-            );
-          }
-
-          if (localPassport) {
-            setProfile(
-              localProfile
-            );
-
-            setCheckouts(
-              localCheckouts
-            );
-
-            setPassportCreated(
-              true
-            );
-          }
-        }
-      } catch {
-        if (
-          !cancelled &&
-          localPassport
-        ) {
           setProfile(
-            localProfile
+            emptyProfile,
           );
 
           setCheckouts(
-            localCheckouts
+            initialCheckouts,
           );
 
           setPassportCreated(
-            true
+            false,
+          );
+
+          setCheckoutStatus(
+            "idle",
+          );
+
+          setCheckoutMessage(
+            null,
           );
         }
-      } finally {
-        if (!cancelled) {
-          setReady(true);
-        }
+
+        return;
+      }
+
+      /*
+       * Outros erros da API.
+       */
+      if (!response.ok) {
+        const result =
+          (await response.json()) as {
+            error?: string;
+          };
+
+        throw new Error(
+          result.error ??
+            "Não foi possível recuperar o passaporte.",
+        );
+      }
+
+      /*
+       * =====================================================
+       * PASSAPORTE EXISTE
+       * =====================================================
+       */
+
+      const result =
+        (await response.json()) as {
+          passport: PassportRow;
+        };
+
+      const row =
+        result.passport;
+
+      if (cancelled) {
+        return;
+      }
+
+      setPassportId(
+        row.id,
+      );
+
+      setProfile({
+        name: row.nome,
+        email: row.email,
+      });
+
+      setCheckouts(
+        checkoutsFromDatabase(
+          row,
+        ),
+      );
+
+      setPassportCreated(
+        true,
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao recuperar passaporte:",
+        error,
+      );
+
+      /*
+       * IMPORTANTE:
+       *
+       * Em caso de erro de conexão,
+       * NÃO usamos mais o localStorage
+       * para fingir que o cadastro existe.
+       *
+       * O Supabase é a fonte oficial.
+       */
+      if (!cancelled) {
+        setPassportCreated(
+          false,
+        );
+
+        setPassportId(null);
+      }
+    } finally {
+      if (!cancelled) {
+        setReady(true);
       }
     }
+  }
 
-    void restorePassport();
+  void restorePassport();
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
+  /* =========================================================
+     3. REGISTRA O QR CODE
+  =========================================================
+
+     Agora o frontend NÃO escolhe:
+
+     - o dia
+     - a coluna do banco
+     - se o QR está ativo
+     - o número do sorteio
+
+     Tudo isso será decidido pela rota:
+
+     POST /api/checkouts
+  ========================================================= */
 
   useEffect(() => {
     if (!ready) {
@@ -450,98 +679,167 @@ export default function Home() {
       return;
     }
 
+    if (!passportId) {
+      return;
+    }
+
+    if (!checkoutType) {
+      return;
+    }
+
+    const attemptKey =
+      `${passportId}:${checkoutType}`;
+
+    /*
+     * Impede chamada duplicada
+     * causada por re-render.
+     */
     if (
-      !checkoutType ||
-      !checkoutDate
+      checkoutAttemptRef.current ===
+      attemptKey
     ) {
       return;
     }
 
-    setCheckouts((current) =>
-      current.map((day) => {
-        if (
-          day.date !==
-          checkoutDate
-        ) {
-          return day;
-        }
+    checkoutAttemptRef.current =
+      attemptKey;
+
+    async function registerCheckout() {
+      setCheckoutStatus(
+        "registering",
+      );
+
+      setCheckoutMessage(
+        "Registrando seu check-out...",
+      );
+
+      try {
+        const response =
+          await fetch(
+            "/api/checkouts",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                passportId,
+                checkout:
+                  checkoutType,
+              }),
+            },
+          );
+
+        const result =
+          (await response.json()) as CheckoutResponse;
 
         if (
-          checkoutType ===
-            "lecture-online" ||
-          checkoutType ===
-            "lecture-presential"
+          !response.ok ||
+          !result.passport
         ) {
-          const mode: LectureMode =
-            checkoutType ===
-            "lecture-online"
-              ? "online"
-              : "presential";
+          setCheckoutStatus(
+            "error",
+          );
 
-          if (day.lecture) {
-            if (!day.lectureMode) {
-              return {
-                ...day,
-                lectureMode:
-                  mode,
-                raffleNumber:
-                  day.activity
-                    ? participantRaffleNumber
-                    : day.raffleNumber,
-              };
-            }
+          setCheckoutMessage(
+            result.error ??
+              "Não foi possível registrar este check-out.",
+          );
 
-            return day;
-          }
-
-          return {
-            ...day,
-            lecture: true,
-            lectureMode:
-              mode,
-            raffleNumber:
-              day.activity
-                ? participantRaffleNumber
-                : day.raffleNumber,
-          };
+          return;
         }
+
+        /*
+         * Atualiza a tela usando
+         * exatamente o que está
+         * salvo no Supabase.
+         */
+        setCheckouts(
+          checkoutsFromDatabase(
+            result.passport,
+          ),
+        );
+
+        /*
+         * Como agora a data vem
+         * do controle no banco,
+         * selecionamos automaticamente
+         * o dia em que o checkout
+         * acabou de ser registrado.
+         */
+        if (
+          result.checkout?.date
+        ) {
+          setSelectedDate(
+            result.checkout.date,
+          );
+        }
+
+        setCheckoutStatus(
+          "success",
+        );
 
         if (
-          checkoutType ===
-          "activity"
+          result.eligible &&
+          result.raffleNumber != null
         ) {
-          if (day.activity) {
-            return day;
-          }
-
-          let raffleNumber =
-            day.raffleNumber;
-
-          if (
-            day.lecture &&
-            !raffleNumber
-          ) {
-            raffleNumber =
-              participantRaffleNumber;
-          }
-
-          return {
-            ...day,
-            activity: true,
-            raffleNumber,
-          };
+          setCheckoutMessage(
+            `Check-out registrado! Você está participando do sorteio com o número ${String(
+              result.raffleNumber,
+            ).padStart(3, "0")}.`,
+          );
+        } else {
+          setCheckoutMessage(
+            "Check-out registrado com sucesso!",
+          );
         }
 
-        return day;
-      })
-    );
+        /*
+         * Depois de registrar com
+         * sucesso, removemos o
+         * parâmetro da URL.
+         *
+         * Assim um refresh da página
+         * não tenta registrar o mesmo
+         * QR novamente.
+         */
+        window.history.replaceState(
+          {},
+          "",
+          window.location.pathname,
+        );
+
+        setCheckoutType(null);
+      } catch (error) {
+        console.error(
+          "Erro ao registrar check-out:",
+          error,
+        );
+
+        setCheckoutStatus(
+          "error",
+        );
+
+        setCheckoutMessage(
+          "Não foi possível registrar o check-out agora.",
+        );
+      }
+    }
+
+    void registerCheckout();
   }, [
     ready,
     passportCreated,
+    passportId,
     checkoutType,
-    checkoutDate,
-    participantRaffleNumber,
   ]);
+
+  /* =========================================================
+     4. SALVA UMA CÓPIA LOCAL DO PASSAPORTE
+  ========================================================= */
 
   useEffect(() => {
     if (!ready) {
@@ -559,44 +857,21 @@ export default function Home() {
 
     window.localStorage.setItem(
       "passaporte-gsk-sipat-2026",
-      JSON.stringify(data)
+      JSON.stringify(data),
     );
-
-    if (!passportId) {
-      return;
-    }
-
-    const timeout =
-      window.setTimeout(() => {
-        void fetch(
-          `/api/passaportes/${passportId}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              checkouts,
-            }),
-          }
-        );
-      }, 300);
-
-    return () =>
-      window.clearTimeout(
-        timeout
-      );
   }, [
     ready,
     passportCreated,
-    passportId,
     profile,
     checkouts,
   ]);
 
+  /* =========================================================
+     5. CRIA OU RECUPERA O PASSAPORTE
+  ========================================================= */
+
   async function createPassport(
-    event: React.FormEvent<HTMLFormElement>
+    event: React.FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
@@ -609,15 +884,16 @@ export default function Home() {
           "/api/passaportes",
           {
             method: "POST",
+
             headers: {
               "Content-Type":
                 "application/json",
             },
-            body:
-              JSON.stringify(
-                profile
-              ),
-          }
+
+            body: JSON.stringify(
+              profile,
+            ),
+          },
         );
 
       const result =
@@ -632,7 +908,7 @@ export default function Home() {
       ) {
         throw new Error(
           result.error ??
-            "Não foi possível criar o passaporte."
+            "Não foi possível criar o passaporte.",
         );
       }
 
@@ -645,13 +921,7 @@ export default function Home() {
       );
 
       setPassportId(
-        row.id
-      );
-
-      setParticipantRaffleNumber(
-        formatRaffleNumber(
-          row.numero_sorteio
-        )
+        row.id,
       );
 
       setProfile({
@@ -661,12 +931,12 @@ export default function Home() {
 
       setCheckouts(
         checkoutsFromDatabase(
-          row
-        )
+          row,
+        ),
       );
 
       setPassportCreated(
-        true
+        true,
       );
     } catch (error) {
       setFormError(
@@ -676,10 +946,14 @@ export default function Home() {
       );
     } finally {
       setSavingPassport(
-        false
+        false,
       );
     }
   }
+
+  /* =========================================================
+     TELA DE CARREGAMENTO
+  ========================================================= */
 
   if (!ready) {
     return null;
@@ -689,23 +963,27 @@ export default function Home() {
     checkouts.find(
       (day) =>
         day.date ===
-        selectedDate
+        selectedDate,
     ) ?? checkouts[0];
+
+  /* =========================================================
+     INTERFACE
+  ========================================================= */
 
   return (
     <main className="min-h-dvh overflow-hidden bg-background text-foreground">
-
       <div className="passport-grid fixed inset-0 -z-10 opacity-60" />
 
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
+      {/* =====================================================
+          CABEÇALHO
+      ====================================================== */}
 
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
         <div
           className="flex items-center gap-3"
           aria-label="Passaporte SIPAT 2026"
         >
-
           <div className="relative size-16 shrink-0">
-
             <Image
               src="/SIPAT logo.png"
               alt="Logo SIPAT"
@@ -713,11 +991,9 @@ export default function Home() {
               priority
               className="object-contain"
             />
-
           </div>
 
           <div>
-
             <p className="font-display text-[1.05rem] font-extrabold leading-none tracking-[-.02em]">
               PASSAPORTE SIPAT 2026
             </p>
@@ -725,46 +1001,55 @@ export default function Home() {
             <p className="mt-1 text-xs font-bold uppercase tracking-[.24em] text-primary">
               GSK
             </p>
-
           </div>
-
         </div>
-
       </header>
 
+      {/* =====================================================
+          CADASTRO
+      ====================================================== */}
+
       {!passportCreated ? (
-
         <section className="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-6xl items-center justify-center px-5 pb-16 pt-4 sm:px-8 md:py-10 lg:px-10">
-
           <div className="relative w-full max-w-xl">
-
             <div className="absolute -inset-8 -z-10 rounded-[48px] bg-[radial-gradient(circle_at_center,rgba(0,153,153,.18),transparent_66%)] blur-xl" />
 
             <form
-              onSubmit={
-                createPassport
-              }
+              onSubmit={createPassport}
               className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_80px_rgba(42,31,54,.12)] backdrop-blur-xl sm:p-8"
             >
-
               <div className="mb-7 flex items-center justify-between gap-4">
-
                 <h1 className="font-display text-3xl font-extrabold tracking-[-.04em]">
                   Cadastro
                 </h1>
 
                 <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
-
                   <CircleUserRound className="size-6" />
-
                 </div>
-
               </div>
 
+              {/* AVISO QUANDO A PESSOA VEIO DE UM QR */}
+
+              {checkoutType && (
+                <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="font-bold text-primary">
+                    Check-out identificado
+                  </p>
+
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    Faça seu cadastro para
+                    registrar este check-out.
+                    Após o cadastro, o
+                    registro será realizado
+                    automaticamente.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-5">
+                {/* NOME */}
 
                 <div className="space-y-2">
-
                   <Label htmlFor="name">
                     Nome completo
                   </Label>
@@ -775,26 +1060,27 @@ export default function Home() {
                     autoComplete="name"
                     placeholder="Digite seu nome completo"
                     value={
-                      profile.name ??
-                      ""
+                      profile.name
                     }
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setProfile({
                         ...profile,
+
                         name:
-                          e.target
+                          event.target
                             .value,
                       })
                     }
                     className="h-12 rounded-xl bg-white px-4"
                   />
-
                 </div>
 
-                <div className="space-y-2">
+                {/* EMAIL */}
 
+                <div className="space-y-2">
                   <Label htmlFor="email">
-                    E-mail corporativo ou pessoal
+                    E-mail corporativo ou
+                    pessoal
                   </Label>
 
                   <Input
@@ -804,27 +1090,27 @@ export default function Home() {
                     autoComplete="email"
                     placeholder="nome@email.com"
                     value={
-                      profile.email ??
-                      ""
+                      profile.email
                     }
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setProfile({
                         ...profile,
+
                         email:
-                          e.target
+                          event.target
                             .value,
                       })
                     }
                     className="h-12 rounded-xl bg-white px-4"
                   />
-
                 </div>
-
               </div>
 
               <Button
                 type="submit"
-                disabled={savingPassport}
+                disabled={
+                  savingPassport
+                }
                 size="lg"
                 className="mt-7 h-13 w-full rounded-xl bg-primary text-base font-bold shadow-[0_10px_25px_rgba(236,73,36,.22)] hover:bg-primary/90"
               >
@@ -833,26 +1119,26 @@ export default function Home() {
                   : "Criar meu passaporte"}
               </Button>
 
-              {formError ? (
+              {formError && (
                 <p className="mt-3 text-center text-sm font-medium text-red-600">
                   {formError}
                 </p>
-              ) : null}
-
+              )}
             </form>
-
           </div>
-
         </section>
-
       ) : (
+        /* =====================================================
+            PASSAPORTE
+        ====================================================== */
 
         <section className="mx-auto w-full max-w-6xl px-5 pb-16 pt-4 sm:px-8 lg:px-10 lg:pt-8">
+          {/* =================================================
+              PARTICIPANTE
+          ================================================== */}
 
           <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-
             <div>
-
               <p className="text-sm font-extrabold uppercase tracking-[.2em] text-primary">
                 Meu passaporte
               </p>
@@ -861,30 +1147,27 @@ export default function Home() {
                 Olá,{" "}
                 {
                   profile.name.split(
-                    " "
+                    " ",
                   )[0]
                 }
                 !
               </h1>
 
               <p className="mt-2 text-muted-foreground">
-                Acompanhe seus check-outs durante os 5 dias do evento.
+                Acompanhe seus
+                check-outs durante os
+                5 dias do evento.
               </p>
-
             </div>
 
             <div className="flex items-center gap-3 rounded-2xl border border-border bg-white/75 px-4 py-3 shadow-sm">
-
               <div className="grid size-10 place-items-center rounded-full bg-secondary font-extrabold text-white">
-
                 {profile.name
                   .slice(0, 1)
                   .toUpperCase()}
-
               </div>
 
               <div>
-
                 <p className="text-sm font-bold">
                   {profile.name}
                 </p>
@@ -892,20 +1175,63 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground">
                   {profile.email}
                 </p>
-
               </div>
-
             </div>
-
           </div>
 
+          {/* =================================================
+              STATUS DO QR CODE
+          ================================================== */}
+
+          {checkoutStatus ===
+            "registering" && (
+            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+              <LoaderCircle className="size-5 animate-spin text-primary" />
+
+              <p className="font-semibold">
+                {checkoutMessage}
+              </p>
+            </div>
+          )}
+
+          {checkoutStatus ===
+            "success" && (
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-secondary/25 bg-secondary/10 p-4">
+              <BadgeCheck className="mt-0.5 size-5 shrink-0 text-secondary" />
+
+              <div>
+                <p className="font-bold">
+                  Check-out realizado
+                </p>
+
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {checkoutMessage}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {checkoutStatus ===
+            "error" && (
+            <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4">
+              <p className="font-bold text-amber-950">
+                Check-out não realizado
+              </p>
+
+              <p className="mt-1 text-sm leading-6 text-amber-900">
+                {checkoutMessage}
+              </p>
+            </div>
+          )}
+
+          {/* =================================================
+              DIAS
+          ================================================== */}
+
           <div className="mb-6 overflow-x-auto">
-
             <div className="flex min-w-max gap-3">
-
               {checkouts.map(
                 (day) => {
-
                   const selected =
                     day.date ===
                     selectedDate;
@@ -915,15 +1241,12 @@ export default function Home() {
                     day.activity;
 
                   return (
-
                     <button
-                      key={
-                        day.date
-                      }
+                      key={day.date}
                       type="button"
                       onClick={() =>
                         setSelectedDate(
-                          day.date
+                          day.date,
                         )
                       }
                       className={`min-w-24 rounded-2xl border px-4 py-3 text-center transition ${
@@ -932,19 +1255,15 @@ export default function Home() {
                           : "border-border bg-white"
                       }`}
                     >
-
                       <p className="text-xs font-bold uppercase tracking-[.12em]">
                         Dia
                       </p>
 
                       <p className="mt-1 text-lg font-extrabold">
-                        {
-                          day.label
-                        }
+                        {day.label}
                       </p>
 
                       {completed && (
-
                         <p
                           className={`mt-1 text-xs font-semibold ${
                             selected
@@ -954,21 +1273,19 @@ export default function Home() {
                         >
                           Completo
                         </p>
-
                       )}
-
                     </button>
-
                   );
-                }
+                },
               )}
-
             </div>
-
           </div>
 
-          <div className="mb-6">
+          {/* =================================================
+              DIA SELECIONADO
+          ================================================== */}
 
+          <div className="mb-6">
             <p className="text-sm font-extrabold uppercase tracking-[.2em] text-primary">
               Check-outs do dia
             </p>
@@ -976,17 +1293,16 @@ export default function Home() {
             <h2 className="font-display mt-1 text-3xl font-extrabold">
               {selectedDay.label}
             </h2>
-
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
+            {/* =================================================
+                PALESTRA
+            ================================================== */}
 
             <div className="rounded-[30px] border border-border bg-white p-6 shadow-[0_20px_60px_rgba(42,31,54,.10)]">
-
               <div className="mb-5 flex items-start justify-between gap-4">
-
                 <div>
-
                   <p className="text-xs font-extrabold uppercase tracking-[.2em] text-primary">
                     Check-out
                   </p>
@@ -1000,7 +1316,6 @@ export default function Home() {
                       selectedDay.lectureName
                     }
                   </p>
-
                 </div>
 
                 <div
@@ -1010,68 +1325,56 @@ export default function Home() {
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
-
                   {selectedDay.lecture ? (
                     <Check className="size-6" />
                   ) : (
                     <Stamp className="size-6" />
                   )}
-
                 </div>
-
               </div>
 
               {!selectedDay.lecture ? (
-
                 <div className="rounded-2xl border border-border bg-muted/40 p-5">
-
                   <p className="font-bold">
-                    Check-out ainda não realizado
+                    Check-out ainda não
+                    realizado
                   </p>
 
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Escaneie o QR Code da palestra para registrar sua participação.
+                    Escaneie o QR Code
+                    da palestra para
+                    registrar sua
+                    participação.
                   </p>
-
                 </div>
-
               ) : (
-
                 <div className="rounded-2xl border border-secondary/25 bg-secondary/10 p-5">
-
                   <div className="flex gap-3">
-
                     <div className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-white">
-
                       <BadgeCheck className="size-5" />
-
                     </div>
 
                     <div>
-
                       <p className="font-bold">
-                        Participação registrada!
+                        Participação
+                        registrada!
                       </p>
 
                       {selectedDay.lectureMode && (
-
                         <p className="mt-2 text-xs font-extrabold uppercase tracking-[.15em] text-primary">
-
                           {selectedDay.lectureMode ===
                           "online"
                             ? "Modalidade online"
                             : "Modalidade presencial"}
-
                         </p>
-
                       )}
 
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-
                         {selectedDay.lectureMode ===
                         "online" ? (
                           <>
-                            Obrigado por participar{" "}
+                            Obrigado por
+                            participar{" "}
                             <span className="font-semibold">
                               online
                             </span>{" "}
@@ -1083,10 +1386,10 @@ export default function Home() {
                             </span>
                             .
                           </>
-                        ) : selectedDay.lectureMode ===
-                          "presential" ? (
+                        ) : (
                           <>
-                            Obrigado por participar{" "}
+                            Obrigado por
+                            participar{" "}
                             <span className="font-semibold">
                               presencialmente
                             </span>{" "}
@@ -1098,36 +1401,21 @@ export default function Home() {
                             </span>
                             .
                           </>
-                        ) : (
-                          <>
-                            Obrigado por participar da palestra{" "}
-                            <span className="font-semibold">
-                              {
-                                selectedDay.lectureName
-                              }
-                            </span>
-                            .
-                          </>
                         )}
-
                       </p>
-
                     </div>
-
                   </div>
-
                 </div>
-
               )}
-
             </div>
 
+            {/* =================================================
+                ATIVIDADE
+            ================================================== */}
+
             <div className="rounded-[30px] border border-border bg-white p-6 shadow-[0_20px_60px_rgba(42,31,54,.10)]">
-
               <div className="mb-5 flex items-start justify-between gap-4">
-
                 <div>
-
                   <p className="text-xs font-extrabold uppercase tracking-[.2em] text-primary">
                     Check-out
                   </p>
@@ -1141,7 +1429,6 @@ export default function Home() {
                       selectedDay.activityName
                     }
                   </p>
-
                 </div>
 
                 <div
@@ -1151,71 +1438,69 @@ export default function Home() {
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
-
                   {selectedDay.activity ? (
                     <Check className="size-6" />
                   ) : (
                     <Stamp className="size-6" />
                   )}
-
                 </div>
-
               </div>
 
               {!selectedDay.activity ? (
-
                 <div className="rounded-2xl border border-border bg-muted/40 p-5">
-
                   <p className="font-bold">
-                    Check-out ainda não realizado
+                    Check-out ainda não
+                    realizado
                   </p>
 
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Escaneie o QR Code ao final da atividade para registrar seu check-out.
+                    Escaneie o QR Code
+                    ao final da atividade
+                    para registrar seu
+                    check-out.
                   </p>
-
                 </div>
-
               ) : (
-
                 <div className="space-y-4">
+                  {/* BRINDE */}
 
                   <div className="rounded-2xl border border-secondary/25 bg-secondary/10 p-5">
-
                     <div className="flex gap-3">
-
                       <div className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-white">
-
                         <BadgeCheck className="size-5" />
-
                       </div>
 
                       <div>
-
                         <p className="font-bold">
                           Parabéns!
                         </p>
 
                         <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                          Você ganhou um brinde. Favor retirar em frente ao elevador.
+                          Você ganhou um
+                          brinde. Favor
+                          retirar em
+                          frente ao
+                          elevador.
                         </p>
-
                       </div>
-
                     </div>
-
                   </div>
 
+                  {/* =================================================
+                      SORTEIO
+                  ================================================== */}
+
                   {selectedDay.raffleNumber ? (
-
                     <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-center">
-
                       <p className="text-sm font-semibold text-muted-foreground">
-                        Você participou da palestra deste dia.
+                        Você completou os
+                        dois check-outs
+                        deste dia.
                       </p>
 
                       <p className="mt-3 text-sm font-bold">
-                        Seu número para o sorteio é:
+                        Seu número para o
+                        sorteio é:
                       </p>
 
                       <p className="font-display mt-2 text-5xl font-black text-primary">
@@ -1223,41 +1508,27 @@ export default function Home() {
                           selectedDay.raffleNumber
                         }
                       </p>
-
                     </div>
-
                   ) : (
-
                     <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
-
                       <p className="font-bold text-amber-950">
-                        Número de sorteio não liberado
+                        Número de sorteio
+                        não liberado
                       </p>
 
                       <p className="mt-2 text-sm leading-6 text-amber-900">
-
                         {selectedDay.lecture
-                          ? "O número de sorteio não foi liberado para este check-out."
-                          : "Você não realizou o check-out da palestra deste dia. Por isso, não foi liberado número para o sorteio."}
-
+                          ? "O número do sorteio ainda não foi liberado."
+                          : "Você não realizou o check-out da palestra deste dia. Por isso, ainda não foi liberado um número para o sorteio."}
                       </p>
-
                     </div>
-
                   )}
-
                 </div>
-
               )}
-
             </div>
-
           </div>
-
         </section>
-
       )}
-
     </main>
   );
 }

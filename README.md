@@ -51,3 +51,10 @@ Remover área
 - ?date=2026-10-19&checkout=lecture-online (palestra online)
 - ?date=2026-10-19&checkout=lecture-presential (palestra presencial)
 - ?date=2026-10-19&checkout=activity (atividade)
+
+## Para buscar os que possuem os dois checkouts no dia
+
+select *
+from public.participantes_sorteio
+where data_sorteio = '2026-10-19' #Alterar a data conforme seja necessário
+order by numero_sorteio;
