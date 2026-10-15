@@ -1061,48 +1061,49 @@ export default function Home() {
           CABEÇALHO
       ====================================================== */}
 
-      <header className="mx-auto flex w-full max-w-6xl items-center px-4 py-5 sm:px-8 lg:px-10">
+      <header className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-8 lg:px-10">
         <div
-          className="flex min-w-0 items-center"
+          className="flex flex-col items-center"
           aria-label="Passaporte SIPAT 2026"
         >
-          {/* LOGO SIPAT */}
-          <div className="flex w-16 shrink-0 justify-center sm:w-24">
-            <div className="relative size-12 sm:size-16">
-              <Image
-                src="/SIPAT logo.png"
-                alt="Logo SIPAT"
-                fill
-                priority
-                sizes="(max-width: 640px) 48px, 64px"
-                className="object-contain"
-              />
-            </div>
+      {/* LOGOS */}
+      <div className="flex items-center justify-center">
+        {/* ÁREA LOGO SIPAT */}
+        <div className="flex w-28 justify-center">
+          <div className="relative size-16 sm:size-20">
+            <Image
+              src="/SIPAT logo.png"
+              alt="Logo SIPAT"
+              fill
+              priority
+              sizes="(max-width: 640px) 64px, 80px"
+              className="object-contain"
+            />
           </div>
+        </div>
 
-          {/* LINHA PRETA */}
-          <div className="mx-2 h-10 w-px shrink-0 bg-black sm:mx-4 sm:h-12" />
+        {/* LINHA PRETA */}
+        <div className="h-14 w-px shrink-0 bg-black sm:h-16" />
 
-          {/* LOGO GSK */}
-          <div className="flex w-20 shrink-0 justify-center sm:w-28">
-            <div className="relative h-14 w-20 sm:h-20 sm:w-28">
-              <Image
-                src="/GSK logo.png"
-                alt="Logo GSK"
-                fill
-                priority
-                sizes="(max-width: 640px) 80px, 112px"
-                className="object-contain"
-              />
-            </div>
+        {/* ÁREA LOGO GSK */}
+        <div className="flex w-28 justify-center">
+          <div className="relative h-20 w-28 sm:h-24 sm:w-32">
+            <Image
+              src="/GSK logo.png"
+              alt="Logo GSK"
+              fill
+              priority
+              sizes="(max-width: 640px) 112px, 128px"
+              className="object-contain"
+            />
           </div>
+        </div>
+      </div>
 
           {/* TÍTULO */}
-          <div className="ml-3 min-w-0 sm:ml-5">
-            <p className="font-display text-[0.8rem] font-extrabold leading-tight tracking-[-.02em] sm:text-[1.05rem]">
-              PASSAPORTE
-              <br className="sm:hidden" />
-              <span className="sm:ml-1"> SIPAT 2026</span>
+          <div className="mt-3 text-center">
+            <p className="font-display text-[1.15rem] font-extrabold leading-tight tracking-[-.02em] sm:text-[1.35rem]">
+              PASSAPORTE SIPAT 2026
             </p>
           </div>
         </div>
