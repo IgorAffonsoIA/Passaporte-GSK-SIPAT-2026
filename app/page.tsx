@@ -1057,53 +1057,52 @@ export default function Home() {
     <main className="min-h-dvh overflow-hidden bg-background text-foreground">
       <div className="passport-grid fixed inset-0 -z-10 opacity-60" />
 
-    {/* =====================================================
-        CABEÇALHO
-    ====================================================== */}
+      {/* =====================================================
+          CABEÇALHO
+      ====================================================== */}
 
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
+      <header className="mx-auto flex w-full max-w-6xl items-center px-4 py-5 sm:px-8 lg:px-10">
         <div
-          className="flex items-center"
+          className="flex min-w-0 items-center"
           aria-label="Passaporte SIPAT 2026"
         >
-          {/* LOGOS */}
-          <div className="flex items-center">
-            {/* LOGO SIPAT */}
-            <div className="flex w-24 justify-center">
-              <div className="relative size-16">
-                <Image
-                  src="/SIPAT logo.png"
-                  alt="Logo SIPAT"
-                  fill
-                  priority
-                  sizes="64px"
-                  className="object-contain"
-                />
-              </div>
+          {/* LOGO SIPAT */}
+          <div className="flex w-16 shrink-0 justify-center sm:w-24">
+            <div className="relative size-12 sm:size-16">
+              <Image
+                src="/SIPAT logo.png"
+                alt="Logo SIPAT"
+                fill
+                priority
+                sizes="(max-width: 640px) 48px, 64px"
+                className="object-contain"
+              />
             </div>
+          </div>
 
-            {/* LINHA PRETA */}
-            <div className="mx-4 h-12 w-px bg-black" />
+          {/* LINHA PRETA */}
+          <div className="mx-2 h-10 w-px shrink-0 bg-black sm:mx-4 sm:h-12" />
 
-            {/* LOGO GSK */}
-            <div className="flex w-28 justify-center">
-              <div className="relative h-20 w-28">
-                <Image
-                  src="/GSK logo.png"
-                  alt="Logo GSK"
-                  fill
-                  priority
-                  sizes="112px"
-                  className="object-contain"
-                />
-              </div>
+          {/* LOGO GSK */}
+          <div className="flex w-20 shrink-0 justify-center sm:w-28">
+            <div className="relative h-14 w-20 sm:h-20 sm:w-28">
+              <Image
+                src="/GSK logo.png"
+                alt="Logo GSK"
+                fill
+                priority
+                sizes="(max-width: 640px) 80px, 112px"
+                className="object-contain"
+              />
             </div>
           </div>
 
           {/* TÍTULO */}
-          <div className="ml-5">
-            <p className="font-display text-[1.05rem] font-extrabold leading-none tracking-[-.02em]">
-              PASSAPORTE SIPAT 2026
+          <div className="ml-3 min-w-0 sm:ml-5">
+            <p className="font-display text-[0.8rem] font-extrabold leading-tight tracking-[-.02em] sm:text-[1.05rem]">
+              PASSAPORTE
+              <br className="sm:hidden" />
+              <span className="sm:ml-1"> SIPAT 2026</span>
             </p>
           </div>
         </div>
