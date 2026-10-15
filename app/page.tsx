@@ -187,7 +187,7 @@ const initialCheckouts: DayCheckout[] = [
       "O Ciclo Invível: Do Vazio aos Excessos",
 
     activityName:
-      "Jogo da Memória",
+      "Quiz SIPAT",
 
     lecture: false,
     lectureMode: null,
