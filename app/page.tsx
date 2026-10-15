@@ -151,7 +151,7 @@ const initialCheckouts: DayCheckout[] = [
       "Segurança no trânsito: prevenindo acidentes no trajeto",
 
     activityName:
-      "Escape SIPAT",
+      "Desafio das cores",
 
     lecture: false,
     lectureMode: null,
@@ -1057,32 +1057,53 @@ export default function Home() {
     <main className="min-h-dvh overflow-hidden bg-background text-foreground">
       <div className="passport-grid fixed inset-0 -z-10 opacity-60" />
 
-      {/* =====================================================
-          CABEÇALHO
-      ====================================================== */}
+    {/* =====================================================
+        CABEÇALHO
+    ====================================================== */}
 
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
         <div
-          className="flex items-center gap-3"
+          className="flex items-center"
           aria-label="Passaporte SIPAT 2026"
         >
-          <div className="relative size-16 shrink-0">
-            <Image
-              src="/SIPAT logo.png"
-              alt="Logo SIPAT"
-              fill
-              priority
-              className="object-contain"
-            />
+          {/* LOGOS */}
+          <div className="flex items-center">
+            {/* LOGO SIPAT */}
+            <div className="flex w-24 justify-center">
+              <div className="relative size-16">
+                <Image
+                  src="/SIPAT logo.png"
+                  alt="Logo SIPAT"
+                  fill
+                  priority
+                  sizes="64px"
+                  className="object-contain"
+                />
+              </div>
+            </div>
+
+            {/* LINHA PRETA */}
+            <div className="mx-4 h-12 w-px bg-black" />
+
+            {/* LOGO GSK */}
+            <div className="flex w-28 justify-center">
+              <div className="relative h-20 w-28">
+                <Image
+                  src="/GSK logo.png"
+                  alt="Logo GSK"
+                  fill
+                  priority
+                  sizes="112px"
+                  className="object-contain"
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
+          {/* TÍTULO */}
+          <div className="ml-5">
             <p className="font-display text-[1.05rem] font-extrabold leading-none tracking-[-.02em]">
               PASSAPORTE SIPAT 2026
-            </p>
-
-            <p className="mt-1 text-xs font-bold uppercase tracking-[.24em] text-primary">
-              GSK
             </p>
           </div>
         </div>
