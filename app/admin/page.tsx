@@ -9,6 +9,8 @@ import {
 import {
   Check,
   LoaderCircle,
+  Download,
+  RefreshCw,
   LockKeyhole,
   LogOut,
   Radio,
@@ -103,6 +105,14 @@ const lectureTypes:
     "lecture-presential",
   ];
 
+type DaySummary = {
+  total_passaportes_criados: number;
+  total_checkouts_online: number;
+  total_checkouts_presenciais: number;
+  total_checkouts_atividade: number;
+  total_aptos_sorteio: number;
+};
+
 export default function AdminPage() {
   const [
     authenticated,
@@ -146,6 +156,57 @@ export default function AdminPage() {
   ] = useState<
     string | null
   >(null);
+
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    return days.some((day) => day.date === today) ? today : "2026-10-21";
+  });
+  const [summary, setSummary] = useState<DaySummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  const loadSummary = useCallback(async () => {
+    if (authenticated !== true) return;
+    setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const response = await fetch(`/api/admin/resumo?dia=${selectedDay.slice(-2)}`, { cache: "no-store" });
+      if (response.status === 401) { setAuthenticated(false); return; }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Erro ao consultar resumo.");
+      setSummary(result as DaySummary);
+    } catch (err) {
+      setSummary(null);
+      setSummaryError(err instanceof Error ? err.message : "Erro ao consultar resumo.");
+    } finally { setSummaryLoading(false); }
+  }, [authenticated, selectedDay]);
+
+  useEffect(() => { void loadSummary(); }, [loadSummary]);
+
+  async function exportCsv() {
+    setExporting(true);
+    setSummaryError(null);
+    try {
+      const response = await fetch(`/api/admin/sorteio/exportar?dia=${selectedDay.slice(-2)}`, { cache: "no-store" });
+      if (response.status === 401) { setAuthenticated(false); return; }
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error ?? "Não foi possível exportar o CSV.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `sorteio_sipat_dia${selectedDay.slice(-2)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setSummaryError(err instanceof Error ? err.message : "Não foi possível exportar o CSV.");
+    } finally { setExporting(false); }
+  }
 
   /* =========================================================
      CARREGA CONTROLES
@@ -641,6 +702,54 @@ export default function AdminPage() {
             {error}
           </div>
         )}
+
+        {/* RESUMO DIÁRIO E EXPORTAÇÃO */}
+        <section className="mb-7 rounded-[28px] border bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[.2em] text-primary">Dashboard</p>
+              <h2 className="mt-2 text-3xl font-black">Resumo do dia</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Acompanhe os registros da SIPAT.</p>
+            </div>
+            <Button type="button" variant="outline" onClick={() => void loadSummary()} disabled={summaryLoading}>
+              <RefreshCw className={`mr-2 size-4 ${summaryLoading ? "animate-spin" : ""}`} /> Atualizar
+            </Button>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-2" aria-label="Selecionar dia do resumo">
+            {days.map(day => (
+              <button type="button" key={day.date} onClick={() => setSelectedDay(day.date)}
+                aria-pressed={selectedDay === day.date}
+                className={`rounded-full border px-5 py-3 text-sm font-bold transition ${selectedDay === day.date ? "border-primary bg-primary text-primary-foreground" : "bg-white hover:bg-slate-50"}`}>
+                {day.label}
+              </button>
+            ))}
+          </div>
+          {summaryError && <p role="alert" className="mt-4 text-sm font-semibold text-red-700">{summaryError}</p>}
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {([
+              ["Passaportes criados", "total_passaportes_criados"],
+              ["Palestra online", "total_checkouts_online"],
+              ["Palestra presencial", "total_checkouts_presenciais"],
+              ["Atividade", "total_checkouts_atividade"],
+              ["Participantes do sorteio", "total_aptos_sorteio"],
+            ] as const).map(([label, key]) => (
+              <div key={key} className="rounded-2xl border bg-slate-50 p-4">
+                <p className="text-sm text-muted-foreground">{label}</p>
+                <p className="mt-3 text-4xl font-black tabular-nums">{summaryLoading || !summary ? "—" : summary[key]}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t pt-5">
+            <div>
+              <h3 className="font-bold">Lista de participantes aptos ao sorteio</h3>
+              <p className="text-sm text-muted-foreground">Número do sorteio, nome e e-mail • {selectedDay.slice(-2)}/10</p>
+            </div>
+            <Button type="button" onClick={() => void exportCsv()} disabled={exporting || summaryLoading}>
+              {exporting ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <Download className="mr-2 size-4" />}
+              {exporting ? "Exportando..." : "Exportar lista CSV"}
+            </Button>
+          </div>
+        </section>
 
         {/* EXPLICAÇÃO */}
 
